@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <!--
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+    -->
+    <link href="bar.css" rel="stylesheet">
+    <script src="utils.js"></script>
+    <script src="votesys.js"></script>
+    <script src="foo.js"></script>
+</head>
+<body>
+    <canvas id="myCanvas" width="1024" height="512"></canvas>
+    <span>
+        <fieldset id="cityProperties">
+            <legend>City Properties</legend>
+            <div>
+                <label for="xField">X Position:</label>
+                <input id="xField" type="number">
+            </div>
+            <div>
+                <label for="yField">Y Position:</label>
+                <input id="yField" type="number">
+            </div>
+            <div>
+                <label for="pField">Population:</label>
+                <input id="pField" type="number">
+            </div>
+            <div>
+                <label for="sField">Pop. Sigma:</label>
+                <input id="sField" type="number">
+            </div>
+            <div>
+                <label for="nRadContainer">Nominated:</label>
+                <span id="nRadContainer">
+                    <input id="nYesRad" name="nRad" value="Yes" type="radio">
+                    <label for="nYesRad">Yes</label>
+                    <input id="nNoRad" name="nRad" value="No" type="radio">
+                    <label for="nNoRad">No</label>
+                </span>
+            </div>
+        </fieldset>
+        <fieldset id="graphProperties">
+            <legend>Graph Properties</legend>
+            <div>
+                <label for="rField">Step Size:</label>
+                <input id="rField" type="number" value="4">
+            </div>
+            <div>
+                <label for="mField">Method:</label>
+                <select id="mField">
+                    <option value="plurality">Plurality</option>
+                    <option value="approval">Approval</option>
+                    <option value="irv">Instant Runoff Voting</option>
+                    <option value="schulze">Schulze</option>
+                </select>
+            </div>
+        </fieldset>
+        <div>
+            <button id=uButton>Update</button>
+            <button id=dButton>Delete</button>
+            <button id=gButton>Update and Graph</button>
+            <!--progress id="gBar" value=100 max=100></progress-->
+        </div>
+        <fieldset>
+            <legend>Flags</legend>
+            <div>
+                <input id="oBox" type="checkbox">
+                <label for="oBox">Hide Ordinal Table</label>
+                <input id="popBox" type="checkbox">
+                <label for="nameBox">Hide Pop. Tags</label>
+            </div>
+            <div>
+                <input id="cBox" type="checkbox">
+                <label for="cBox">Hide Cardinal Table</label>
+                <input id="nameBox" type="checkbox">
+                <label for="nameBox">Hide Name Tags</label>
+            </div>
+            <div>
+                <input id="eBox" type="checkbox">
+                <label for="eBox">Hide Election Table</label>
+                <input id="graphBox" type="checkbox">
+                <label for="graphBox">Always Graph</label>
+            </div>
+        </fieldset>
+    </span>
+    <div>
+        <table id="myOrdinalResults"><thead></thead><tbody></tbody></table>
+        <table id="myCardinalResults"><thead></thead><tbody></tbody></table>
+        <table id="myElectionResults"><thead></thead><tbody></tbody></table>
+    </div>
+    <script type="text/javascript">
+        main();
+    </script>
+</body>
+</html>

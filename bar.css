@@ -1,0 +1,52 @@
+body {
+    text-align: center;
+    background-color: gray;
+}
+span {
+    display: inline-block;
+}
+canvas {
+    width: 95vw;
+}
+table {
+    display: inline-block;
+    border: solid;
+    margin: 0.5%;
+}
+td {
+    white-space: pre;
+    font-family: monospace;
+}
+fieldset {
+    display: inline-block-table;
+    margin: 0.5%;
+    white-space: nowrap;
+}
+fieldset > div {
+    display: table-row;
+}
+fieldset > div > span {
+    display: table-cell;
+}
+fieldset > div > label {
+    display: table-cell;
+    text-align: right;
+    padding-right: 4px;
+}
+fieldset > div > input + label {
+    display: table-cell;
+    text-align: left;
+}
+fieldset > div > input {
+    display: table-cell;
+}
+fieldset > div > select {
+    display: table-cell;
+    width: 100%;
+}
+button {
+    width: 99%;
+}
+progress {
+    width: 99%;
+}
