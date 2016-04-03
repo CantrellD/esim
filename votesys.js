@@ -148,11 +148,36 @@ var votesys = (function() {
         return ret;
     }
 
+    function magic(candidates, ballots, cache) {
+        var name2index = {};
+        var ret = [];
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
+            name2index[candidate.name] = i;
+            ret.push({candidate: candidate, score: 0});
+        }
+        for (var i = 0; i < ballots.length; i++) {
+            var ballot = ballots[i];
+            for (var j = 0; j < ballot.votes.length; j++) {
+                var vote = ballot.votes[j];
+                ret[name2index[vote.candidate.name]].score += vote.score * ballot.weight;
+            }
+        }
+        ret.sort(function(a, b) {return b.score - a.score;});
+        return ret.map(function(x) {return x.candidate;});
+    }
+
     return {
         plurality: plurality,
         approval: approval,
         irv: irv,
         schulze: schulze,
-        methods: ["plurality", "approval", "irv", "schulze"]
+        methods: [
+            {name: "Plurality", fn: plurality},
+            {name: "Approval", fn: approval},
+            {name: "Instant Runoff Voting", fn: irv},
+            {name: "Schulze", fn: schulze},
+            {name: "Magic Best", fn: magic}
+        ]
     };
 })();

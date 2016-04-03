@@ -5,6 +5,7 @@ let img;
 let cities = [];
 let candidates = [];
 let ballots = [];
+let methods = votesys.methods;
 let colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
 let names = [
     "Memphis", "Nashville", "Knoxville", "Chattanooga",
@@ -30,7 +31,7 @@ function City(x, y) {
     this.nominated = true;
     this.selected = false;
     this.name = "N/A";
-    this.color = "white";
+    this.color = "gray";
 }
 
 City.prototype = {
@@ -88,12 +89,6 @@ function draw() {
                 city.moving = false;
             }
         }
-        else if (!(mval in votesys)) {
-            alert("Method is invalid.");
-            for (let city of cities) {
-                city.moving = false;
-            }
-        }
         else if (variable !== null) {
             let init_x = variable.x;
             let init_y = variable.y;
@@ -101,16 +96,23 @@ function draw() {
             let offset = utils.i32(step / 2);
             let gen = utils.cycle(utils.permutations.bind(null, candidates));
             let cache = {};
-            let winner;
+            let method;
             let choices;
+            let winner;
 
+            for (let i = 0; i < methods.length; i++) {
+                method = methods[i];
+                if (method.name === mval) {
+                    break;
+                }
+            }
             for (let x = 0; x < xmax; x += step) {
                 for (let y = 0; y < ymax; y += step) {
                     choices = gen.next().value;
                     variable.x = x;
                     variable.y = y;
                     updateBallots();
-                    winner = votesys[mval](choices, ballots, cache)[0];
+                    winner = method.fn(choices, ballots, cache)[0];
                     ctx.fillStyle = winner.color;
                     ctx.fillRect(x - offset, y - offset, step, step);
                 }
@@ -266,9 +268,10 @@ function onEvent(src, evt) {
             }
         }
         if (src === EE.CONTEXTMENU) {
-            if (city.checkBounds(x, y)) {
+            if (city.checkBounds(x, y) && !handled) {
                 city.selected = !city.selected;
                 handled = true;
+                // Don't break. Other cities must be deselected.
             }
             else {
                 city.selected = false;
@@ -285,6 +288,7 @@ function onEvent(src, evt) {
         if (src === EE.MOUSEUP && evt.button === 1) {
             cities.push(new City(x, y));
             cities[cities.length - 1].nominated = false;
+            cities[cities.length - 1].population *= 100;
             handled = true;
         }
     }
@@ -322,12 +326,29 @@ function onUpdate() {
         city.y = Math.min(city.y, cvs.height);
     }
 
+    updateMethodField();
     updateCityPropertyControls();
     updateVoters();
     updateCandidates();
     updateColors();
     updateBallots();
     updateTables();
+}
+
+function updateMethodField() {
+    let mField = document.getElementById("mField");
+    if (mField.options.length !== methods.length) {
+        while (mField.length > 0) {
+            mField.remove(0);
+        }
+        for (let method of methods) {
+            let option = document.createElement("option");
+            option.text = method.name;
+            option.value = method.name;
+            mField.add(option);
+        }
+        mField.selectedIndex = 0;
+    }
 }
 
 function updateCityPropertyControls() {
@@ -394,7 +415,7 @@ function updateCandidates() {
 
 function updateColors() {
     for (let city of cities) {
-        city.color = "white";
+        city.color = "gray";
     }
     while (
         colors.length > colors.init_len && colors.length > candidates.length
@@ -595,7 +616,6 @@ function updateTables() {
 
     function updateElectionResultsTable() {
         let tbl = document.getElementById("myElectionResults");
-        let methods = votesys.methods;
 
         tbl.style.visibility = "hidden";
         rebuildTable(tbl, methods.length, candidates.length);
@@ -613,12 +633,12 @@ function updateTables() {
         // Update the table headers.
         for (let i = 0; i < methods.length; i++) {
             let method = methods[i];
-            updateTableCell(tbl, i, -1, method, "white");
+            updateTableCell(tbl, i, -1, method.name, "white");
         }
         // Update the table contents.
         let tableData = [];
         for (let method of methods) {
-            let rowData = votesys[method](candidates, ballots, {});
+            let rowData = method.fn(candidates, ballots, {});
             tableData.push(rowData);
         }
         for (let row = 0; row < tableData.length; row++) {
