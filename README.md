@@ -1,9 +1,15 @@
 # Election Simulator
 
 ## Controls
-Left Mouse Button: Add (and nominate) small city
-Middle Mouse Button: Add (but do not nominate) large city
-Right Mouse Button: Select city
+```
+Left Mouse Button:
+    - Click on the map to add (and nominate) a small city.
+    - Click on a city and drag to move the city.
+Middle Mouse Button:
+    - Click on the map to add (but not nominate) a large city.
+Right Mouse Button:
+    - Click on a city to select/deselect the city.
+```
 
 ## Context
 This page can be used to simulate elections where voters choose the location of a new capital city. Voters prefer cities which are relatively close to the city in which they live, and express those preferences sincerely. During approval voting elections, the approval threshold for each voter is given by their average distance to potential capitals. Be aware that voters would behave differently in reality, and that the consequences of strategic voting vary widely between voting systems.
