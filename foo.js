@@ -3,8 +3,6 @@ let cvs;
 let ctx;
 let img;
 let cities = [];
-let candidates = [];
-let ballots = [];
 let methods = votesys.methods;
 let colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
 let names = [
@@ -21,11 +19,12 @@ colors.init_len = colors.length;
 names.init_len = names.length;
 
 function City(x, y) {
+    let voters = [];
+    Object.freeze(voters);
     this.x = x;
     this.y = y;
-    this.population = 1;
-    this.voters = [];
-    this.sigma = 0;
+    this._voters = voters;
+    this._sigma = 0;
     this.radius = 8;
     this.moving = false;
     this.nominated = true;
@@ -35,6 +34,18 @@ function City(x, y) {
 }
 
 City.prototype = {
+    getVoters: function() {
+        return this._voters;
+    },
+    setVoters: function(voters) {
+        if (Object.isFrozen()) {
+            this._voters = voters;
+        }
+        else {
+            this._voters = voters.slice(0);
+            Object.freeze(this._voters);
+        }
+    },
     checkBounds: function(x, y) {
         let dx = x - this.x;
         let dy = y - this.y;
@@ -49,7 +60,7 @@ City.prototype = {
             tags.push(this.name);
         }
         if (!(document.getElementById("popBox").checked)) {
-            tags.push("Pop: " + this.population.toString());
+            tags.push("Pop: " + this.getPopulation().toString());
         }
         for (let i = 0; i < tags.length; i++) {
             ctx.fillText(tags[i], this.x + this.radius + 8, this.y + 16 * i);
@@ -62,78 +73,170 @@ City.prototype = {
         ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
         ctx.fill();
         ctx.stroke();
+    },
+    copy: function() {
+        return Object.assign(new City(0, 0), this);
+    },
+    getSigma: function() {
+        return this._sigma;
+    },
+    setSigma: function(arg) {
+        let pop = this.getPopulation();
+        this.setPopulation(0);
+        this._sigma = arg;
+        this.setPopulation(pop);
+    },
+    getPopulation: function() {
+        return this.getVoters().length;
+    },
+    setPopulation: function(arg) {
+        if (arg === this.getPopulation()) {
+            return;
+        }
+        let counter = 0;
+        let min = Math.min;
+        let voters = this.getVoters().map(function(voter) {
+            return {x: voter.x, y: voter.y, weight: voter.weight};
+        });
+        let xy2index = {};
+        for (let i = 0; i < voters.length; i++) {
+            let voter = voters[i];
+            let xy = args2xy(voter.x, voter.y);
+            if (xy in xy2index) {
+                continue;
+            }
+            xy2index[xy] = i;
+        }
+        while (voters.length > arg) {
+            let voter = voters.pop();
+            if (voter.weight < 1) {
+                let xy = args2xy(voter.x, voter.y);
+                voters[xy2index[xy]].weight -= 1;
+            }
+        }
+        while (voters.length < arg) {
+            let xval = utils.i32(utils.gauss(0, this.getSigma(), true));
+            let yval = utils.i32(utils.gauss(0, this.getSigma(), true));
+            let xy = args2xy(xval, yval);
+            if (xy in xy2index) {
+                voters[xy2index[xy]].weight += 1;
+                voters.push({x: xval, y: yval, weight: 0});
+            }
+            else {
+                xy2index[xy] = voters.length;
+                voters.push({x: xval, y: yval, weight: 1});
+            }
+        }
+        Object.freeze(voters);
+        this.setVoters(voters);
+        function args2xy(x, y) {
+            return "x" + x.toString() + "y" + y.toString();
+        }
     }
 };
 
 
 function draw() {
+    if (!("graph" in draw)) {
+        draw.graph = null;
+    }
     let xmax = cvs.width;
     let ymax = cvs.height;
+    let gBox = document.getElementById("graphBox");
 
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-    ctx.fillStyle = utils.rgb2str(0.075, 0.075, 0.075);
-    ctx.fillRect(0, 0, cvs.width, cvs.height);
-    if (document.getElementById("graphBox").checked) {
-        let rval = parseFloat(document.getElementById("rField").value);
-        let mval = document.getElementById("mField").value;
-        let variable = null;
+    drawBotLayer();
+    drawMidLayer();
+    drawTopLayer();
+
+    function drawBotLayer() {
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.fillStyle = utils.rgb2str(0.075, 0.075, 0.075);
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+    }
+    function drawMidLayer() {
+        if (draw.graph !== null) {
+            ctx.drawImage(draw.graph, 0, 0, xmax, ymax);
+        }
+        if (gBox.checked) {
+            requestGraph(function(graph) {
+                draw.graph = graph;
+                draw();
+                return;
+            });
+        }
+        else {
+            draw.graph = null;
+        }
+    }
+    function drawTopLayer() {
+        ctx.drawImage(img, 0, 0, xmax, ymax);
+        ctx.fillStyle = "white";
         for (let city of cities) {
-            if (city.selected) {
-                variable = city;
-                break;
+            for (let voter of city.getVoters()) {
+                let truex = city.x + voter.x;
+                let truey = city.y + voter.y;
+                ctx.fillRect(truex, truey, 1, 1);
             }
         }
-        if (isNaN(rval) || rval < 1) {
-            alert("Step Size is invalid.");
-            for (let city of cities) {
-                city.moving = false;
-            }
+        for (let city of cities) {
+            city.draw(ctx);
         }
-        else if (variable !== null) {
-            let init_x = variable.x;
-            let init_y = variable.y;
-            let step = utils.i32(rval);
-            let offset = utils.i32(step / 2);
-            let gen = utils.cycle(utils.permutations.bind(null, candidates));
-            let cache = {};
-            let method;
-            let choices;
-            let winner;
+    }
+}
 
-            for (let i = 0; i < methods.length; i++) {
-                method = methods[i];
-                if (method.name === mval) {
-                    break;
-                }
+function requestGraph(callback) {
+    let fn = requestGraph;
+    if (!("cache" in fn)) {
+        fn.cache = fn;
+        fn.busy = false;
+        fn.cvs = document.createElement("canvas");
+        fn.ctx = fn.cvs.getContext("2d");
+        fn.cvs.width = cvs.width;
+        fn.cvs.height = cvs.height;
+    }
+    if (fn.busy) {
+        return;
+    }
+    if (cities.filter(function(x) {return x.selected;}).length < 1) {
+        return;
+    }
+    let ss = document.styleSheets[0];
+    ss.insertRule("* {cursor: wait !important}", 0);
+    fn.busy = true;
+    setTimeout(function() {
+        let rField = document.getElementById("rField");
+        let mField = document.getElementById("mField");
+        let step = utils.i32(rField.value);
+        let offset = utils.i32(step / 2);
+        let method = methods.filter(function(x) {
+            return x.name === mField.value;
+        })[0];
+        let cache = {};
+
+        let copies = cities.map(function(x) {return x.copy();});
+        let candidates = copies.filter(function(x) {return x.nominated;});
+        let variable = copies.filter(function(x) {return x.selected;})[0];
+        let gen = utils.cycle(utils.permutations.bind(null, candidates));
+        for (let x = 0; x < fn.cvs.width; x += step) {
+            for (let y = 0; y < fn.cvs.height; y += step) {
+                let init_x = variable.x;
+                let init_y = variable.y;
+                let ballots;
+                let winner;
+                variable.x = x;
+                variable.y = y;
+                ballots = poll(copies, candidates);
+                variable.x = init_x;
+                variable.y = init_y;
+                winner = method.fn(gen.next().value, ballots, cache)[0];
+                fn.ctx.fillStyle = winner.color;
+                fn.ctx.fillRect(x - offset, y - offset, step, step);
             }
-            for (let x = 0; x < xmax; x += step) {
-                for (let y = 0; y < ymax; y += step) {
-                    choices = gen.next().value;
-                    variable.x = x;
-                    variable.y = y;
-                    updateBallots();
-                    winner = method.fn(choices, ballots, cache)[0];
-                    ctx.fillStyle = winner.color;
-                    ctx.fillRect(x - offset, y - offset, step, step);
-                }
-            }
-            variable.x = init_x;
-            variable.y = init_y;
-            updateBallots();
         }
-    }
-    ctx.drawImage(img, 0, 0, xmax, ymax);
-    ctx.fillStyle = "white";
-    for (let city of cities) {
-        for (let voter of city.voters) {
-            let truex = city.x + voter.x;
-            let truey = city.y + voter.y;
-            ctx.fillRect(truex, truey, 1, 1);
-        }
-    }
-    for (let city of cities) {
-        city.draw(ctx);
-    }
+        callback(fn.cvs);
+        ss.deleteRule(0);
+        fn.busy = false;
+    }, 32);
 }
 
 function submitNewProperties() {
@@ -148,18 +251,39 @@ function submitNewProperties() {
             else {alert("X Position is invalid.");}
             if (!isNaN(yval)) { city.y = utils.i32(yval); }
             else {alert("Y Position is invalid.");}
-            if (!isNaN(pval)) { city.population = utils.i32(pval); }
+            if (!isNaN(pval)) { city.setPopulation(utils.i32(pval)); }
             else {alert("Population is invalid.");}
-            if (!isNaN(sval)) {
-                if (city.sigma !== sval) {
-                    city.sigma = sval;
-                    city.voters.length = 0;
-                }
-            }
+            if (!isNaN(sval)) { city.setSigma(sval); }
             else {alert("Sigma is invalid.");}
             city.nominated = document.getElementById("nYesRad").checked;
         }
     }
+}
+
+
+function poll(cities, candidates) {
+    let ballots = [];
+    for (let city of cities) {
+        for (let voter of city.getVoters()) {
+            if (voter.weight === 0) {
+                continue;
+            }
+            let votes = [];
+            for (let candidate of candidates) {
+                let dx = city.x + voter.x - candidate.x;
+                let dy = city.y + voter.y - candidate.y;
+                let score = -Math.sqrt(dx * dx + dy * dy);
+                votes.push({
+                    candidate: candidate,
+                    score: score
+                });
+            }
+            votes.sort(function(a, b) {return b.score - a.score;});
+            utils.assert(votes.length < 2 || votes[0].score >= votes[1].score);
+            ballots.push({weight: voter.weight, votes: votes});
+        }
+    }
+    return ballots;
 }
 
 function main() {
@@ -198,13 +322,13 @@ function main() {
         for (let i = 0; i < cities.length; i++) {
             let city = cities[i];
             if (city.selected) {
-                city.population = -1;
+                city.setPopulation(0);
                 onUpdate();
                 draw();
             }
         }
     }
-    // TODO: Fix this.
+    // TODO: Kind of a hack.
     document.getElementById("gButton").onclick = function() {
         let gBox = document.getElementById("graphBox");
         let tmp = gBox.checked;
@@ -238,11 +362,6 @@ function onEvent(src, evt) {
                 handled = true;
                 break;
             }
-            if (city.checkBounds(x, y) && evt.button === 1) {
-                city.population = -1;
-                handled = true;
-                break;
-            }
         }
         if (src === EE.MOUSEMOVE) {
             if (city.moving) {
@@ -254,14 +373,11 @@ function onEvent(src, evt) {
         }
         if (src === EE.WHEEL) {
             if (city.checkBounds(x, y)) {
-                if (evt.deltaY > 0 && city.population > 0) {
-                    city.population -= 100;
-                    if (city.population < 0) {
-                        city.population = 0;
-                    }
+                if (evt.deltaY > 0 && city.getPopulation() > 0) {
+                    city.setPopulation(Math.max(city.getPopulation() - 100, 0));
                 }
                 else if (evt.deltaY < 0) {
-                    city.population += 100;
+                    city.setPopulation(city.getPopulation() + 100);
                 }
                 handled = true;
                 break;
@@ -281,14 +397,15 @@ function onEvent(src, evt) {
     if (!handled) {
         if (src === EE.MOUSEUP && evt.button === 0) {
             cities.push(new City(utils.i32(x), utils.i32(y)));
+            cities[cities.length - 1].setPopulation(1);
             handled = true;
         }
     }
     if (!handled) {
         if (src === EE.MOUSEUP && evt.button === 1) {
-            cities.push(new City(x, y));
+            cities.push(new City(utils.i32(x), utils.i32(y)));
             cities[cities.length - 1].nominated = false;
-            cities[cities.length - 1].population *= 100;
+            cities[cities.length - 1].setPopulation(100);
             handled = true;
         }
     }
@@ -302,13 +419,13 @@ function onEvent(src, evt) {
 function onUpdate() {
     utils.insertionSort(
         cities,
-        function(a, b) {return b.population - a.population;}
+        function(a, b) {return b.getPopulation() - a.getPopulation();}
     );
-    utils.assert(
-        cities.length < 2 || cities[0].population >= cities[1].population
-    );
+    if (cities.length > 1) {
+        utils.assert(cities[0].getPopulation() >= cities[1].getPopulation());
+    }
 
-    while (cities.length > 0 && cities[cities.length - 1].population < 0) {
+    while (cities.length > 0 && cities[cities.length - 1].getPopulation() < 1) {
         cities.pop();
     }
     while (names.length > names.init_len && names.length > cities.length) {
@@ -326,12 +443,9 @@ function onUpdate() {
         city.y = Math.min(city.y, cvs.height);
     }
 
-    updateMethodField();
-    updateCityPropertyControls();
-    updateVoters();
-    updateCandidates();
     updateColors();
-    updateBallots();
+    updateCityPropertyControls();
+    updateMethodField();
     updateTables();
 }
 
@@ -375,45 +489,16 @@ function updateCityPropertyControls() {
             }
             xField.value = city.x.toString();
             yField.value = city.y.toString();
-            pField.value = city.population.toString();
-            sField.value = city.sigma.toString();
+            pField.value = city.getPopulation().toString();
+            sField.value = city.getSigma().toString();
             nNoRad.checked = !city.nominated;
             nYesRad.checked = city.nominated;
         }
     }
 }
 
-function updateVoters() {
-    for (let city of cities) {
-        let xy2index = {};
-        city.voters.length = Math.min(city.voters.length, city.population);
-        while (city.population > city.voters.length) {
-            let xval = utils.i32(utils.gauss(0, city.sigma, true));
-            let yval = utils.i32(utils.gauss(0, city.sigma, true));
-            let xy = "x" + xval.toString() + "y" + yval.toString();
-            if (xy in xy2index) {
-                // TODO: Don't push elements just to update city.voters.length.
-                city.voters[xy2index[xy]].weight += 1;
-                city.voters.push({weight: 0});
-            }
-            else {
-                xy2index[xy] = city.voters.length;
-                city.voters.push({x: xval, y: yval, weight: 1});
-            }
-        }
-    }
-}
-
-function updateCandidates() {
-    candidates.length = 0;
-    for (let city of cities) {
-        if (city.nominated) {
-            candidates.push(city);
-        }
-    }
-}
-
 function updateColors() {
+    let candidates = cities.filter(function(x) {return x.nominated;});
     for (let city of cities) {
         city.color = "gray";
     }
@@ -434,31 +519,9 @@ function updateColors() {
     }
 }
 
-function updateBallots() {
-    ballots.length = 0;
-    for (let city of cities) {
-        for (let voter of city.voters) {
-            if (voter.weight === 0) {
-                continue;
-            }
-            let votes = [];
-            for (let candidate of candidates) {
-                let dx = city.x + voter.x - candidate.x;
-                let dy = city.y + voter.y - candidate.y;
-                let score = -Math.sqrt(dx * dx + dy * dy);
-                votes.push({
-                    candidate: candidate,
-                    score: score
-                });
-            }
-            votes.sort(function(a, b) {return b.score - a.score;});
-            utils.assert(votes.length < 2 || votes[0].score >= votes[1].score);
-            ballots.push({weight: voter.weight, votes: votes});
-        }
-    }
-}
-
 function updateTables() {
+    let candidates = cities.filter(function(x) {return x.nominated;});
+    let ballots = poll(cities, candidates);
     let name2index = {};
     for (let i = 0; i < candidates.length; i++) {
         let candidate = candidates[i];

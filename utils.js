@@ -113,6 +113,15 @@ var utils = (function() {
             }
         }
     }
+    function asyncFor(start, stop, step, callback) {
+        if (start < stop) {
+            callback(start);
+            setTimeout(
+                function() {asyncFor(start + step, stop, step, callback);},
+                0
+            );
+        }
+    }
 
     return {
         EvtEnum: EvtEnum,
@@ -125,6 +134,7 @@ var utils = (function() {
         insertionSort: insertionSort,
         shuffle: shuffle,
         permutations: permutations,
-        cycle: cycle
+        cycle: cycle,
+        asyncFor: asyncFor
     };
 })();
