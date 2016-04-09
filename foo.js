@@ -357,8 +357,13 @@ function onEvent(src, evt) {
     let handled = false;
     if (!("cache" in fn)) {
         fn.cache = fn;
-        fn.pre_src = null;
-        fn.pre_evt = null;
+        fn.isClick = function(e) {return false;};
+    }
+    if (src === EE.MOUSEDOWN) {
+        fn.isClick = function(e) {
+            let eq = function(x, y) {return utils.i32(x) === utils.i32(y);};
+            return e.button === evt.button && eq(e.x, evt.x) && eq(e.y, evt.y);
+        };
     }
     for (let city of utils.reversed(cities)) {
         if (src === EE.MOUSEDOWN) {
@@ -367,11 +372,15 @@ function onEvent(src, evt) {
                 handled = true;
                 break;
             }
+            if (city.checkBounds(x, y) && evt.button === 1) {
+                handled = true;
+                break;
+            }
         }
         if (src === EE.MOUSEUP) {
             if (evt.button === 0 && city.moving) {
                 city.moving = false;
-                if (fn.pre_src === EE.MOUSEDOWN && fn.pre_evt.button === 0) {
+                if (fn.isClick(evt)) {
                     let tmp = city.selected;
                     cities.forEach(function(x) {x.selected = false;});
                     city.selected = !tmp;
@@ -420,21 +429,11 @@ function onEvent(src, evt) {
             handled = true;
         }
     }
-    if (!handled) {
-        if (src === EE.MOUSEUP && evt.button === 1) {
-            cities.push(new City(utils.i32(x), utils.i32(y)));
-            cities[cities.length - 1].nominated = false;
-            cities[cities.length - 1].setPopulation(100);
-            handled = true;
-        }
-    }
     if (handled) {
         evt.preventDefault();
         onUpdate();
         draw();
     }
-    fn.pre_src = src;
-    fn.pre_evt = evt;
 }
 
 function onUpdate() {

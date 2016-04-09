@@ -4,8 +4,7 @@
 ```
 Left click on map: Add (and nominate) small city
 Left click on city: Select / deselect city
-Middle click on map: Add (but do not nominate) large city
-Middle click on city: Toggle nomination status
+Middle click on city: Toggle city nomination
 Right click on city: Delete city
 ```
 
