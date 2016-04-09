@@ -2,13 +2,11 @@
 
 ## Controls
 ```
-Left Mouse Button:
-    - Click on the map to add (and nominate) a small city.
-    - Click on a city and drag to move the city.
-Middle Mouse Button:
-    - Click on the map to add (but not nominate) a large city.
-Right Mouse Button:
-    - Click on a city to select/deselect the city.
+Left click on map: Add (and nominate) small city
+Left click on city: Select / deselect city
+Middle click on map: Add (but do not nominate) large city
+Middle click on city: Toggle nomination status
+Right click on city: Delete city
 ```
 
 ## Context

@@ -81,6 +81,9 @@ City.prototype = {
         return this._sigma;
     },
     setSigma: function(arg) {
+        if (arg === this.getSigma()) {
+            return;
+        }
         let pop = this.getPopulation();
         this.setPopulation(0);
         this._sigma = arg;
@@ -198,6 +201,9 @@ function requestGraph(callback) {
         return;
     }
     if (cities.filter(function(x) {return x.selected;}).length < 1) {
+        return;
+    }
+    if (cities.filter(function(x) {return x.nominated;}).length < 1) {
         return;
     }
     let ss = document.styleSheets[0];
@@ -343,11 +349,17 @@ function main() {
 }
 
 function onEvent(src, evt) {
+    let fn = onEvent;
     let EE = utils.EvtEnum;
     let box = cvs.getBoundingClientRect();
     let x = (evt.clientX - box.left) * cvs.width / (box.right - box.left);
     let y = (evt.clientY - box.top) * cvs.height / (box.bottom - box.top);
     let handled = false;
+    if (!("cache" in fn)) {
+        fn.cache = fn;
+        fn.pre_src = null;
+        fn.pre_evt = null;
+    }
     for (let city of utils.reversed(cities)) {
         if (src === EE.MOUSEDOWN) {
             if (city.checkBounds(x, y) && evt.button === 0 && !city.moving) {
@@ -359,6 +371,23 @@ function onEvent(src, evt) {
         if (src === EE.MOUSEUP) {
             if (evt.button === 0 && city.moving) {
                 city.moving = false;
+                if (fn.pre_src === EE.MOUSEDOWN && fn.pre_evt.button === 0) {
+                    let tmp = city.selected;
+                    cities.forEach(function(x) {x.selected = false;});
+                    city.selected = !tmp;
+                }
+                handled = true;
+                break;
+            }
+            if (city.checkBounds(x, y) && evt.button === 1) {
+                city.nominated = !(city.nominated);
+                handled = true;
+                break;
+            }
+        }
+        if (src === EE.CONTEXTMENU) {
+            if (city.checkBounds(x, y)) {
+                city.setPopulation(0);
                 handled = true;
                 break;
             }
@@ -374,23 +403,13 @@ function onEvent(src, evt) {
         if (src === EE.WHEEL) {
             if (city.checkBounds(x, y)) {
                 if (evt.deltaY > 0 && city.getPopulation() > 0) {
-                    city.setPopulation(Math.max(city.getPopulation() - 100, 0));
+                    city.setPopulation(Math.max(city.getPopulation() - 100, 1));
                 }
                 else if (evt.deltaY < 0) {
                     city.setPopulation(city.getPopulation() + 100);
                 }
                 handled = true;
                 break;
-            }
-        }
-        if (src === EE.CONTEXTMENU) {
-            if (city.checkBounds(x, y) && !handled) {
-                city.selected = !city.selected;
-                handled = true;
-                // Don't break. Other cities must be deselected.
-            }
-            else {
-                city.selected = false;
             }
         }
     }
@@ -414,6 +433,8 @@ function onEvent(src, evt) {
         onUpdate();
         draw();
     }
+    fn.pre_src = src;
+    fn.pre_evt = evt;
 }
 
 function onUpdate() {
