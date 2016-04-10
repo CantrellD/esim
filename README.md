@@ -36,6 +36,8 @@ The positions of voters relative to the cities in which they live follow a gauss
 
 The resolution of graphs can be controlled with the 'Step' field. Lower step values give higher resolution.
 
+Patterns of alternating color are meant to indicate ties when generating graphs. Strictly speaking the simulator doesn't check for ties, so the patterns occur because the candidates are specified in a different order when requesting different parts of the graph. Every possible ordering is used prior to repetition, so the patterns break down as the number of candidates becomes large.
+
 New voting systems can be added to the simulator via javascript console (ctrl-shift-j in Chrome) as follows:
 ```javascript
 function demo(candidates, ballots, cache) {
