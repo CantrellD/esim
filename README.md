@@ -15,10 +15,9 @@ This page can be used to simulate elections where voters choose the location of 
 Election results are generally shown at the bottom of the page. Results for a given method can also be graphed on the state map, in which case the color of the map at a given location shows which city would be chosen if the selected city were moved to that location. Graphs cannot be generated if no city is selected.
 
 ## Methods
-Methods are ordered by subjective implementation complexity.
 
 ### Plurality
-Each voter chooses one candidate. The candidate chosen by the most voters is elcted.
+Each voter chooses one candidate. The candidate chosen by the most voters is elected.
 
 ### Approval
 Each voter chooses some subset of the candidates. The candidate chosen by the most voters is elected.
@@ -37,7 +36,7 @@ The positions of voters relative to the cities in which they live follow a gauss
 
 The resolution of graphs can be controlled with the 'Step' field. Lower step values give higher resolution.
 
-New voting systems can be added to the simulator using the javascript console. Here's an example:
+New voting systems can be added to the simulator via javascript console (ctrl-shift-j in Chrome) as follows:
 ```javascript
 function demo(candidates, ballots, cache) {
     var name2index = {};
