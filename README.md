@@ -6,6 +6,7 @@ Left click on map: Add (and nominate) small city
 Left click on city: Select / deselect city
 Middle click on city: Toggle city nomination
 Right click on city: Delete city
+Scroll on city: Change city population
 ```
 
 ## Context
