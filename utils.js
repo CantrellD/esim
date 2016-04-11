@@ -1,7 +1,7 @@
 "use strict";
 
 var utils = (function() {
-    let EvtEnum = {
+    var EvtEnum = {
         MOUSEDOWN: "mousedown",
         MOUSEUP: "mouseup",
         MOUSEMOVE: "mousemove",
@@ -20,14 +20,14 @@ var utils = (function() {
     }
 
     function gauss(mu, sigma, use_cache) {
+        var u1;
+        var u2;
+        var tmp;
         if (use_cache && gauss.cache !== null) {
-            let tmp = gauss.cache;
+            tmp = gauss.cache;
             gauss.cache = null;
             return tmp * sigma + mu;
         }
-        let u1;
-        let u2;
-        let tmp;
         do {
             u1 = 2.0 * Math.random() - 1.0;
             u2 = 2.0 * Math.random() - 1.0;
@@ -53,18 +53,10 @@ var utils = (function() {
         return "rgb(" + r + ", " + g + ", " + b + ")";
     }
 
-    function* reversed(arr) {
-        let index = arr.length - 1;
-        while (index >= 0) {
-            yield arr[index];
-            index -= 1;
-        }
-    }
-
     function insertionSort(arr, cmp) {
-        for (let i = 1; i < arr.length; i++) {
-            let j = i;
-            let t = arr[j];
+        for (var i = 1; i < arr.length; i++) {
+            var j = i;
+            var t = arr[j];
             while (j > 0 && cmp(arr[j - 1], t) > 0) {
                 arr[j] = arr[j - 1];
                 j -= 1;
@@ -74,8 +66,8 @@ var utils = (function() {
     }
 
     function shuffle(arr) {
-        let n, tmp;
-        for (let i = arr.length - 1; i > 0; i--) {
+        var n, tmp;
+        for (var i = arr.length - 1; i > 0; i--) {
             n = Math.floor(Math.random() * (i + 1));
             tmp = arr[i];
             arr[i] = arr[n];
@@ -83,18 +75,46 @@ var utils = (function() {
         }
     }
 
-    function emap(arr, fn) {
-        let ret = [];
-        for (let i = 0; i < arr.length; i++) {
-            ret.push(fn(i, arr[i]));
-        }
-        return ret;
-    }
     function exclude(arr, i) {
-        let ret = arr.slice(0);
+        var ret = arr.slice(0);
         ret.splice(i, 1);
         return ret;
     }
+
+    function asyncFor(start, stop, step, callback) {
+        if (start < stop) {
+            callback(start);
+            setTimeout(
+                function() {asyncFor(start + step, stop, step, callback);},
+                0
+            );
+        }
+    }
+
+    /****************************************************************\
+    function* cycle(generator) {
+        while (true) {
+            for (let x of generator()) {
+                yield x;
+            }
+        }
+    }
+    \****************************************************************/
+    function cycle(generator) {
+        var ret = {};
+        var itr = generator();
+        ret.next = function() {
+            var nxt = itr.next();
+            if (nxt.done) {
+                itr = generator();
+                nxt = itr.next();
+            }
+            return nxt;
+        }
+        return ret;
+    }
+
+    /****************************************************************\
     function* permutations(arr) {
         if (arr.length < 1) {
             yield arr;
@@ -106,21 +126,42 @@ var utils = (function() {
             }
         }
     }
-    function* cycle(generator) {
-        while (true) {
-            for (let x of generator()) {
-                yield x;
+    \****************************************************************/
+    function permutations(arr) {
+        var ret = {};
+        var fin = false;
+        var i;
+        var child;
+        if (arr.length < 1) {
+            ret.next = function() {
+                if (fin) {
+                    return {value: undefined, done: true};
+                }
+                else {
+                    fin = true;
+                    return {value: [], done: false};
+                }
+            };
+        }
+        else {
+            i = 0;
+            child = permutations(exclude(arr, i));
+            ret.next = function() {
+                var nxt = child.next();
+                if (nxt.done) {
+                    i += 1;
+                    if (i < arr.length) {
+                        child = permutations(exclude(arr, i));
+                        nxt = child.next();
+                    }
+                    else {
+                        return {value: undefined, done: true};
+                    }
+                }
+                return {value: [arr[i]].concat(nxt.value), done: nxt.done};
             }
         }
-    }
-    function asyncFor(start, stop, step, callback) {
-        if (start < stop) {
-            callback(start);
-            setTimeout(
-                function() {asyncFor(start + step, stop, step, callback);},
-                0
-            );
-        }
+        return ret;
     }
 
     return {
@@ -130,7 +171,6 @@ var utils = (function() {
         gauss: gauss,
         hsl2rgb: hsl2rgb,
         rgb2str: rgb2str,
-        reversed: reversed,
         insertionSort: insertionSort,
         shuffle: shuffle,
         permutations: permutations,

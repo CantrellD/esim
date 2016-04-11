@@ -10,7 +10,8 @@ var votesys = (function() {
             name2index[candidate.name] = i;
             ret.push({candidate: candidate, score: 0});
         }
-        for (let ballot of ballots) {
+        for (let i = 0; i < ballots.length; i++) {
+            let ballot = ballots[i];
             let vote = ballot.votes[0];
             ret[name2index[vote.candidate.name]].score += ballot.weight;
         }
@@ -28,13 +29,16 @@ var votesys = (function() {
             name2index[candidate.name] = i;
             ret.push({candidate: candidate, score: 0});
         }
-        for (let ballot of ballots) {
+        for (let i = 0; i < ballots.length; i++) {
+            let ballot = ballots[i];
             let sum = 0;
-            for (let vote of ballot.votes) {
+            for (let j = 0; j < ballot.votes.length; j++) {
+                let vote = ballot.votes[j];
                 sum += vote.score;
             }
             let avg = sum / ballot.votes.length;
-            for (let vote of ballot.votes) {
+            for (let j = 0; j < ballot.votes.length; j++) {
+                let vote = ballot.votes[j];
                 let candidate = vote.candidate;
                 if (vote.score > avg) {
                     ret[name2index[candidate.name]].score += ballot.weight;
@@ -61,8 +65,10 @@ var votesys = (function() {
             name2index[candidate.name] = i;
             ret.push({candidate: candidate, score: 0});
         }
-        for (let ballot of ballots) {
-            for (let vote of ballot.votes) {
+        for (let i = 0; i < ballots.length; i++) {
+            let ballot = ballots[i];
+            for (let j = 0; j < ballot.votes.length; j++) {
+                let vote = ballot.votes[j];
                 if (vote.candidate.name in name2index) {
                     ret[name2index[vote.candidate.name]].score += ballot.weight;
                     break;
@@ -82,25 +88,30 @@ var votesys = (function() {
 
     function schulze(candidates, ballots, cache) {
         let pairs = {};
-        for (let winner of candidates) {
+        for (let i = 0; i < candidates.length; i++) {
+            let winner = candidates[i];
             pairs[winner.name] = {};
-            for (let loser of candidates) {
+            for (let j = 0; j < candidates.length; j++) {
+                let loser = candidates[j];
                 pairs[winner.name][loser.name] = 0;
             }
         }
-        for (let ballot of ballots) {
-            for (let i = 0; i < ballot.votes.length; i++) {
-                let winner = ballot.votes[i].candidate;
-                for (let j = i + 1; j < ballot.votes.length; j++) {
-                    let loser = ballot.votes[j].candidate;
+        for (let i = 0; i < ballots.length; i++) {
+            let ballot = ballots[i];
+            for (let j = 0; j < ballot.votes.length; j++) {
+                let winner = ballot.votes[j].candidate;
+                for (let k = j + 1; k < ballot.votes.length; k++) {
+                    let loser = ballot.votes[k].candidate;
                     pairs[winner.name][loser.name] += ballot.weight;
                 }
             }
         }
         let pathVals = {};
-        for (let ci of candidates) {
+        for (let i = 0; i < candidates.length; i++) {
+            let ci = candidates[i];
             pathVals[ci.name] = {};
-            for (let cj of candidates) {
+            for (let j = 0; j < candidates.length; j++) {
+                let cj = candidates[j];
                 pathVals[ci.name][cj.name] = null;
             }
         }

@@ -32,26 +32,26 @@ function City(x, y) {
     this.name = "N/A";
     this.color = "gray";
 }
-
-City.prototype = {
-    getVoters: function() {
+(function() {
+    let cls = City.prototype;
+    cls.getVoters = function() {
         return this._voters;
-    },
-    setVoters: function(voters) {
-        if (Object.isFrozen()) {
+    };
+    cls.setVoters = function(voters) {
+        if (Object.isFrozen(voters)) {
             this._voters = voters;
         }
         else {
             this._voters = voters.slice(0);
             Object.freeze(this._voters);
         }
-    },
-    checkBounds: function(x, y) {
+    };
+    cls.checkBounds = function(x, y) {
         let dx = x - this.x;
         let dy = y - this.y;
         return Math.sqrt(dx * dx + dy * dy) <= this.radius;
-    },
-    draw: function(ctx) {
+    };
+    cls.draw = function(ctx) {
         ctx.fillStyle = "black";
         ctx.strokeStyle = "white";
         ctx.font = "bold 16px Arial";
@@ -62,10 +62,10 @@ City.prototype = {
         if (!(document.getElementById("popBox").checked)) {
             tags.push("Pop: " + this.getPopulation().toString());
         }
-        for (let i = 0; i < tags.length; i++) {
-            ctx.fillText(tags[i], this.x + this.radius + 8, this.y + 16 * i);
-            ctx.strokeText(tags[i], this.x + this.radius + 8, this.y + 16 * i);
-        }
+        tags.forEach(function(tag, i) {
+            ctx.fillText(tag, this.x + this.radius + 8, this.y + 16 * i);
+            ctx.strokeText(tag, this.x + this.radius + 8, this.y + 16 * i);
+        }.bind(this));
 
         ctx.beginPath();
         ctx.fillStyle = this.color;
@@ -73,14 +73,20 @@ City.prototype = {
         ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
         ctx.fill();
         ctx.stroke();
-    },
-    copy: function() {
-        return Object.assign(new City(0, 0), this);
-    },
-    getSigma: function() {
+    };
+    cls.copy = function() {
+        let ret = new City(0, 0);
+        for (let x in this) {
+            if (this.hasOwnProperty(x)) {
+                ret[x] = this[x];
+            }
+        }
+        return ret;
+    };
+    cls.getSigma = function() {
         return this._sigma;
-    },
-    setSigma: function(arg) {
+    };
+    cls.setSigma = function(arg) {
         if (arg === this.getSigma()) {
             return;
         }
@@ -88,11 +94,11 @@ City.prototype = {
         this.setPopulation(0);
         this._sigma = arg;
         this.setPopulation(pop);
-    },
-    getPopulation: function() {
+    };
+    cls.getPopulation = function() {
         return this.getVoters().length;
-    },
-    setPopulation: function(arg) {
+    };
+    cls.setPopulation = function(arg) {
         if (arg === this.getPopulation()) {
             return;
         }
@@ -102,14 +108,13 @@ City.prototype = {
             return {x: voter.x, y: voter.y, weight: voter.weight};
         });
         let xy2index = {};
-        for (let i = 0; i < voters.length; i++) {
-            let voter = voters[i];
+        voters.forEach(function (voter, i) {
             let xy = args2xy(voter.x, voter.y);
             if (xy in xy2index) {
-                continue;
+                return; //continue
             }
             xy2index[xy] = i;
-        }
+        });
         while (voters.length > arg) {
             let voter = voters.pop();
             if (voter.weight < 1) {
@@ -135,8 +140,8 @@ City.prototype = {
         function args2xy(x, y) {
             return "x" + x.toString() + "y" + y.toString();
         }
-    }
-};
+    };
+})();
 
 
 function draw() {
@@ -174,16 +179,16 @@ function draw() {
     function drawTopLayer() {
         ctx.drawImage(img, 0, 0, xmax, ymax);
         ctx.fillStyle = "white";
-        for (let city of cities) {
-            for (let voter of city.getVoters()) {
+        cities.forEach(function (city) {
+            city.getVoters().forEach(function (voter) {
                 let truex = city.x + voter.x;
                 let truey = city.y + voter.y;
                 ctx.fillRect(truex, truey, 1, 1);
-            }
-        }
-        for (let city of cities) {
+            });
+        });
+        cities.forEach(function (city) {
             city.draw(ctx);
-        }
+        });
     }
 }
 
@@ -250,8 +255,7 @@ function submitNewProperties() {
     let yval = parseFloat(document.getElementById("yField").value);
     let pval = parseFloat(document.getElementById("pField").value);
     let sval = parseFloat(document.getElementById("sField").value);
-    for (let i = 0; i < cities.length; i++) {
-        let city = cities[i];
+    cities.forEach(function(city) {
         if (city.selected) {
             if (!isNaN(xval)) { city.x = utils.i32(xval); }
             else {alert("X Position is invalid.");}
@@ -263,19 +267,19 @@ function submitNewProperties() {
             else {alert("Sigma is invalid.");}
             city.nominated = document.getElementById("nYesRad").checked;
         }
-    }
+    });
 }
 
 
 function poll(cities, candidates) {
     let ballots = [];
-    for (let city of cities) {
-        for (let voter of city.getVoters()) {
+    cities.forEach(function (city) {
+        city.getVoters().forEach(function (voter) {
             if (voter.weight === 0) {
-                continue;
+                return; //continue
             }
             let votes = [];
-            for (let candidate of candidates) {
+            candidates.forEach(function (candidate) {
                 let dx = city.x + voter.x - candidate.x;
                 let dy = city.y + voter.y - candidate.y;
                 let score = -Math.sqrt(dx * dx + dy * dy);
@@ -283,12 +287,12 @@ function poll(cities, candidates) {
                     candidate: candidate,
                     score: score
                 });
-            }
+            });
             votes.sort(function(a, b) {return b.score - a.score;});
             utils.assert(votes.length < 2 || votes[0].score >= votes[1].score);
             ballots.push({weight: voter.weight, votes: votes});
-        }
-    }
+        });
+    });
     return ballots;
 }
 
@@ -323,17 +327,16 @@ function main() {
         submitNewProperties();
         onUpdate();
         draw();
-    }
+    };
     document.getElementById("dButton").onclick = function() {
-        for (let i = 0; i < cities.length; i++) {
-            let city = cities[i];
+        cities.forEach(function(city) {
             if (city.selected) {
                 city.setPopulation(0);
                 onUpdate();
                 draw();
             }
-        }
-    }
+        });
+    };
     // TODO: Kind of a hack.
     document.getElementById("gButton").onclick = function() {
         let gBox = document.getElementById("graphBox");
@@ -365,7 +368,8 @@ function onEvent(src, evt) {
             return e.button === evt.button && eq(e.x, evt.x) && eq(e.y, evt.y);
         };
     }
-    for (let city of utils.reversed(cities)) {
+    for (let i = cities.length - 1; i > -1; i--) {
+        let city = cities[i];
         if (src === EE.MOUSEDOWN) {
             if (city.checkBounds(x, y) && evt.button === 0 && !city.moving) {
                 city.moving = true;
@@ -454,14 +458,13 @@ function onUpdate() {
     while (cities.length > names.length) {
         names.push("New " + names[names.length - names.init_len]);
     }
-    for (let i = 0; i < cities.length; i++) {
-        let city = cities[i];
+    cities.forEach(function(city, i) {
         city.name = names[i];
         city.x = Math.max(city.x, 0);
         city.x = Math.min(city.x, cvs.width);
         city.y = Math.max(city.y, 0);
         city.y = Math.min(city.y, cvs.height);
-    }
+    });
 
     updateColors();
     updateCityPropertyControls();
@@ -475,12 +478,12 @@ function updateMethodField() {
         while (mField.length > 0) {
             mField.remove(0);
         }
-        for (let method of methods) {
+        methods.forEach(function (method) {
             let option = document.createElement("option");
             option.text = method.name;
             option.value = method.name;
             mField.add(option);
-        }
+        });
         mField.selectedIndex = 0;
     }
 }
@@ -494,19 +497,19 @@ function updateCityPropertyControls() {
     let nYesRad = document.getElementById("nYesRad");
     let fields = [xField, yField, pField, sField];
     let rads = [nNoRad, nYesRad];
-    for (let field of fields) {
+    fields.forEach(function (field) {
         field.value = "";
         field.disabled = true;
-    }
-    for (let rad of rads) {
+    });
+    rads.forEach(function (rad) {
         rad.checked = false;
         rad.disabled = true;
-    }
-    for (let city of cities) {
+    });
+    cities.forEach(function (city) {
         if (city.selected) {
-            for (let elt of [].concat(fields, rads)) {
+            [].concat(fields, rads).forEach(function (elt) {
                 elt.disabled = false;
-            }
+            });
             xField.value = city.x.toString();
             yField.value = city.y.toString();
             pField.value = city.getPopulation().toString();
@@ -514,17 +517,17 @@ function updateCityPropertyControls() {
             nNoRad.checked = !city.nominated;
             nYesRad.checked = city.nominated;
         }
-    }
+    });
 }
 
 function updateColors() {
     let candidates = cities.filter(function(x) {return x.nominated;});
-    for (let city of cities) {
+    cities.forEach(function (city) {
         city.color = "gray";
-    }
-    while (
-        colors.length > colors.init_len && colors.length > candidates.length
-    ) {
+    });
+
+    let tooManyColors = (colors.length > candidates.length) ? true : false;
+    while (colors.length > colors.init_len && tooManyColors) {
         colors.pop();
     }
     while (candidates.length > colors.length) {
@@ -533,20 +536,18 @@ function updateColors() {
         let lval = Math.random() % 0.5 + 0.25;
         colors.push(utils.rgb2str.apply(null, utils.hsl2rgb(hval, sval, lval)));
     }
-    for (let i = 0; i < candidates.length; i++) {
-        let candidate = candidates[i];
+    candidates.forEach(function(candidate, i) {
         candidate.color = colors[i];
-    }
+    });
 }
 
 function updateTables() {
     let candidates = cities.filter(function(x) {return x.nominated;});
     let ballots = poll(cities, candidates);
     let name2index = {};
-    for (let i = 0; i < candidates.length; i++) {
-        let candidate = candidates[i];
+    candidates.forEach(function(candidate, i) {
         name2index[candidate.name] = i;
-    }
+    });
     updateOrdinalResultsTable();
     updateCardinalResultsTable();
     updateElectionResultsTable();
@@ -615,26 +616,24 @@ function updateTables() {
         tbl.style.visibility = "visible";
 
         // Update the table headers.
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        candidates.forEach(function(candidate, i) {
             updateTableCell(tbl, i, -1, candidate.name + " Y", candidate.color);
-        }
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        });
+        candidates.forEach(function(candidate, i) {
             updateTableCell(tbl, -1, i, candidate.name + " N", candidate.color);
-        }
+        });
         // Update the table contents.
         let tableData = [];
         let dataDenom = 0;
 
-        for (let candidate of candidates) {
+        candidates.forEach(function (candidate) {
             let rowData = [];
             while (rowData.length < candidates.length) {
                 rowData.push(0);
             }
             tableData.push(rowData);
-        }
-        for (let ballot of ballots) {
+        });
+        ballots.forEach(function (ballot) {
             for (let j = 0; j < ballot.votes.length; j++) {
                 let winner_id = name2index[ballot.votes[j].candidate.name];
                 for (let k = j + 1; k < ballot.votes.length; k++) {
@@ -643,7 +642,7 @@ function updateTables() {
                 }
             }
             dataDenom += ballot.weight;
-        }
+        });
         for (let row = 0; row < tableData.length; row++) {
             let rowData = tableData[row];
             for (let col = 0; col < rowData.length; col++) {
@@ -666,26 +665,25 @@ function updateTables() {
         tbl.style.visibility = "visible";
 
         // Update the table headers.
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        candidates.forEach(function(candidate, i) {
             updateTableCell(tbl, i, -1, candidate.name, candidate.color);
-        }
+        });
         updateTableCell(tbl, -1, 0, "Average Distance", "white");
 
         // Update the table contents.
         let tableData = [];
         let dataDenom = 0;
-        for (let candidate of candidates) {
+        candidates.forEach(function (candidate) {
             let rowData = [0];
             tableData.push(rowData);
-        }
-        for (let ballot of ballots) {
-            for (let vote of ballot.votes) {
+        });
+        ballots.forEach(function (ballot) {
+            ballot.votes.forEach(function (vote) {
                 let candidate_id = name2index[vote.candidate.name];
                 tableData[candidate_id][0] += vote.score * ballot.weight;
-            }
+            });
             dataDenom += ballot.weight;
-        }
+        });
         for (let row = 0; row < tableData.length; row++) {
             let rowData = tableData[row];
             for (let col = 0; col < rowData.length; col++) {
@@ -708,22 +706,20 @@ function updateTables() {
         tbl.style.visibility = "visible";
 
         // Update the table headers.
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        candidates.forEach(function(candidate, i) {
             updateTableCell(tbl, -1, i, (i + 1).toString(), "white");
-        }
+        });
 
         // Update the table headers.
-        for (let i = 0; i < methods.length; i++) {
-            let method = methods[i];
+        methods.forEach(function(method, i) {
             updateTableCell(tbl, i, -1, method.name, "white");
-        }
+        });
         // Update the table contents.
         let tableData = [];
-        for (let method of methods) {
+        methods.forEach(function (method) {
             let rowData = method.fn(candidates, ballots, {});
             tableData.push(rowData);
-        }
+        });
         for (let row = 0; row < tableData.length; row++) {
             let rowData = tableData[row];
             for (let col = 0; col < rowData.length; col++) {
