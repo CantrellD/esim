@@ -222,7 +222,8 @@ function requestGraph(callback) {
         let method = methods.filter(function(x) {
             return x.name === mField.value;
         })[0];
-        let cache = {};
+        let evilCache = {};
+        let goodCache = {};
 
         let copies = cities.map(function(x) {return x.copy();});
         let candidates = copies.filter(function(x) {return x.nominated;});
@@ -236,10 +237,10 @@ function requestGraph(callback) {
                 let winner;
                 variable.x = x;
                 variable.y = y;
-                ballots = poll(copies, candidates);
+                ballots = poll(copies, candidates, goodCache);
                 variable.x = init_x;
                 variable.y = init_y;
-                winner = method.fn(gen.next().value, ballots, cache)[0];
+                winner = method.fn(gen.next().value, ballots, evilCache)[0];
                 fn.ctx.fillStyle = winner.color;
                 fn.ctx.fillRect(x - offset, y - offset, step, step);
             }
@@ -271,28 +272,58 @@ function submitNewProperties() {
 }
 
 
-function poll(cities, candidates) {
-    let ballots = [];
-    cities.forEach(function (city) {
-        city.getVoters().forEach(function (voter) {
+function poll(cities, candidates, cache) {
+    var ballots = [];
+    for (var i = 0; i < cities.length; i++) {
+        var city = cities[i];
+        var voters = city.getVoters();
+        for (var j = 0; j < voters.length; j++) {
+            var voter = voters[j];
             if (voter.weight === 0) {
-                return; //continue
+                continue;
             }
-            let votes = [];
-            candidates.forEach(function (candidate) {
-                let dx = city.x + voter.x - candidate.x;
-                let dy = city.y + voter.y - candidate.y;
-                let score = -Math.sqrt(dx * dx + dy * dy);
-                votes.push({
-                    candidate: candidate,
-                    score: score
-                });
-            });
-            votes.sort(function(a, b) {return b.score - a.score;});
-            utils.assert(votes.length < 2 || votes[0].score >= votes[1].score);
+            var votes = [];
+            if (city.name in cache && !(city.selected)) {
+                var cacheVotes = cache[city.name];
+                for (var k = 0; k < cacheVotes.length; k++) {
+                    var cacheVote = cacheVotes[k];
+                    if (cacheVote.candidate.selected) {
+                        var dx = city.x + voter.x - cacheVote.candidate.x;
+                        var dy = city.y + voter.y - cacheVote.candidate.y;
+                        var score = -Math.sqrt(dx * dx + dy * dy);
+                        votes.push({
+                            candidate: cacheVote.candidate,
+                            score: score
+                        });
+                    }
+                    else {
+                        votes.push(cacheVote);
+                    }
+                }
+                utils.insertionSort(
+                    votes,
+                    function(a, b) {return b.score - a.score;}
+                );
+            }
+            else {
+                for (var k = 0; k < candidates.length; k++) {
+                    var candidate = candidates[k];
+                    var dx = city.x + voter.x - candidate.x;
+                    var dy = city.y + voter.y - candidate.y;
+                    var score = -Math.sqrt(dx * dx + dy * dy);
+                    votes.push({candidate: candidate, score: score});
+                    utils.insertionSort(
+                        votes,
+                        function(a, b) {return b.score - a.score;}
+                    );
+                }
+                if (!(city.selected)) {
+                    cache[city.name] = votes;
+                }
+            }
             ballots.push({weight: voter.weight, votes: votes});
-        });
-    });
+        }
+    }
     return ballots;
 }
 
@@ -543,7 +574,7 @@ function updateColors() {
 
 function updateTables() {
     let candidates = cities.filter(function(x) {return x.nominated;});
-    let ballots = poll(cities, candidates);
+    let ballots = poll(cities, candidates, {});
     let name2index = {};
     candidates.forEach(function(candidate, i) {
         name2index[candidate.name] = i;
