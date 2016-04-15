@@ -54,7 +54,6 @@ function City(x, y) {
     cls.draw = function(ctx) {
         ctx.fillStyle = "black";
         ctx.strokeStyle = "white";
-        ctx.font = "bold 16px Arial";
         let tags = [];
         if (!document.getElementById("nameBox").checked) {
             tags.push(this.name);
@@ -607,7 +606,7 @@ function updateTables() {
         row.appendChild(document.createElement("th"));
         for (let i = 0; i < numCols; i++) {
             let cell = row.appendChild(document.createElement("th"));
-            cell.style.color = "white";
+            cell.style.color = "black";
             cell.appendChild(document.createTextNode(""));
         }
 
@@ -615,7 +614,7 @@ function updateTables() {
         for (let i = 0; i < numRows; i++) {
             let row = bdy.insertRow(bdy.rows.length);
             let cell = row.appendChild(document.createElement("th"));
-            cell.style.color = "white";
+            cell.style.color = "black";
             cell.appendChild(document.createTextNode(""));
             for (let j = 0; j < numCols; j++) {
                 let cell = row.appendChild(document.createElement("td"));
@@ -685,7 +684,7 @@ function updateTables() {
             for (let col = 0; col < rowData.length; col++) {
                 let datum = rowData[col];
                 let cellVal = utils.i32(100 * datum / dataDenom);
-                let cellColor = (cellVal < 50) ? "red" : (cellVal > 50) ? "green" : "white";
+                let cellColor = (cellVal < 50) ? "red" : (cellVal > 50) ? "green" : "black";
                 updateTableCell(tbl, row, col, ("    " + cellVal).slice(-3) + "%", cellColor);
             }
         }
@@ -705,7 +704,7 @@ function updateTables() {
         candidates.forEach(function(candidate, i) {
             updateTableCell(tbl, i, -1, candidate.name, candidate.color);
         });
-        updateTableCell(tbl, -1, 0, "Average Distance", "white");
+        updateTableCell(tbl, -1, 0, "Average Distance", "black");
 
         // Update the table contents.
         let tableData = [];
@@ -726,7 +725,7 @@ function updateTables() {
             for (let col = 0; col < rowData.length; col++) {
                 let datum = rowData[col];
                 let cellVal = (-utils.i32(datum / dataDenom)).toString();
-                let cellColor = "white";
+                let cellColor = "black";
                 updateTableCell(tbl, row, col, cellVal, cellColor);
             }
         }
@@ -744,12 +743,12 @@ function updateTables() {
 
         // Update the table headers.
         candidates.forEach(function(candidate, i) {
-            updateTableCell(tbl, -1, i, (i + 1).toString(), "white");
+            updateTableCell(tbl, -1, i, (i + 1).toString(), "black");
         });
 
         // Update the table headers.
         methods.forEach(function(method, i) {
-            updateTableCell(tbl, i, -1, method.name, "white");
+            updateTableCell(tbl, i, -1, method.name, "black");
         });
         // Update the table contents.
         let tableData = [];

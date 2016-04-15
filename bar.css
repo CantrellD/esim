@@ -10,12 +10,17 @@ canvas {
 }
 table {
     display: inline-block;
-    border: solid;
     margin: 0.5%;
+    border-style: solid;
+    border-color: white;
+    border-width: 1px 1px 1px 1px;
 }
 td {
     white-space: pre;
     font-family: monospace;
+}
+th {
+    font-weight: normal;
 }
 fieldset {
     display: inline-block-table;
