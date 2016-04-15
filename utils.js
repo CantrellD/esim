@@ -9,6 +9,8 @@ var utils = (function() {
         CONTEXTMENU: "contextmenu"
     }
 
+    var ITR_END = {value: undefined, done: true};
+
     function i32(x) {
         return x | 0;
     }
@@ -63,6 +65,57 @@ var utils = (function() {
             }
             arr[j] = t;
         }
+        return arr;
+    }
+
+    function merge(io, tmp, a, b, c, cmp) {
+        var i = a;
+        var j = b;
+        var k = a;
+        while (k < c) {
+            if (i === b) {
+                tmp[k] = io[j];
+                k++;
+                j++;
+            }
+            else if (j === c) {
+                tmp[k] = io[i];
+                k++;
+                i++;
+            }
+            else if (cmp(io[i], io[j]) > 0) {
+                tmp[k] = io[j];
+                k++;
+                j++;
+            }
+            else {
+                tmp[k] = io[i];
+                k++;
+                i++;
+            }
+        }
+        for (k = a; k < c; k++) {
+            io[k] = tmp[k];
+        }
+    }
+
+
+    function mergeSort(arr, cmp) {
+        var copy = arr.slice(0);
+        function impl(a, b, c) {
+            if (a === c) {
+                return;
+            }
+            if (b - a > 1) {
+                impl(a, (a + b) >> 1, b);
+            }
+            if (c - b > 1) {
+                impl(b, (b + c) >> 1, c);
+            }
+            merge(copy, arr, a, b, c, cmp)
+        }
+        impl(0, arr.length >> 1, arr.length)
+        return arr;
     }
 
     function shuffle(arr) {
@@ -75,12 +128,6 @@ var utils = (function() {
         }
     }
 
-    function exclude(arr, i) {
-        var ret = arr.slice(0);
-        ret.splice(i, 1);
-        return ret;
-    }
-
     function asyncFor(start, stop, step, callback) {
         if (start < stop) {
             callback(start);
@@ -91,15 +138,6 @@ var utils = (function() {
         }
     }
 
-    /****************************************************************\
-    function* cycle(generator) {
-        while (true) {
-            for (let x of generator()) {
-                yield x;
-            }
-        }
-    }
-    \****************************************************************/
     function cycle(generator) {
         var ret = {};
         var itr = generator();
@@ -114,54 +152,56 @@ var utils = (function() {
         return ret;
     }
 
-    /****************************************************************\
-    function* permutations(arr) {
-        if (arr.length < 1) {
-            yield arr;
-        }
-        for (let i = 0; i < arr.length; i++) {
-            let child = permutations(exclude(arr, i));
-            for (let p of child) {
-                yield [arr[i]].concat(p);
-            }
-        }
-    }
-    \****************************************************************/
-    function permutations(arr) {
+    function ipermute(arr, depth) {
         var ret = {};
         var fin = false;
-        var i;
+        var i = 1;
         var child;
-        if (arr.length < 1) {
-            ret.next = function() {
-                if (fin) {
-                    return {value: undefined, done: true};
-                }
-                else {
-                    fin = true;
-                    return {value: [], done: false};
-                }
-            };
-        }
-        else {
-            i = 0;
-            child = permutations(exclude(arr, i));
+        var src = null;
+        if (depth < arr.length - 1) {
+            child = ipermute(arr, depth + 1);
             ret.next = function() {
                 var nxt = child.next();
                 if (nxt.done) {
-                    i += 1;
-                    if (i < arr.length) {
-                        child = permutations(exclude(arr, i));
+                    if (src !== null) {
+                        var tmp = arr[src];
+                        arr[src] = arr[depth];
+                        arr[depth] = tmp;
+                    }
+                    if (depth + i < arr.length) {
+                        src = depth + i;
+                        var tmp = arr[depth];
+                        arr[depth] = arr[src];
+                        arr[src] = tmp;
+                        child = ipermute(arr, depth + 1);
                         nxt = child.next();
+                        i += 1;
                     }
                     else {
-                        return {value: undefined, done: true};
+                        src = null;
+                        nxt = ITR_END;
                     }
                 }
-                return {value: [arr[i]].concat(nxt.value), done: nxt.done};
+                return nxt;
             }
         }
+        else {
+            ret.next = function() {
+                if (fin) {
+                    return ITR_END;
+                }
+                else {
+                    fin = true;
+                    return {value: arr, done: false};
+                }
+            };
+        }
         return ret;
+    }
+
+    function permutations(arr) {
+        var copy = arr.slice(0);
+        return ipermute(copy, 0);
     }
 
     return {
@@ -172,6 +212,7 @@ var utils = (function() {
         hsl2rgb: hsl2rgb,
         rgb2str: rgb2str,
         insertionSort: insertionSort,
+        mergeSort: mergeSort,
         shuffle: shuffle,
         permutations: permutations,
         cycle: cycle,

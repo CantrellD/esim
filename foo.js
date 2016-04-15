@@ -205,15 +205,21 @@ function requestGraph(callback) {
     if (fn.busy) {
         return;
     }
+    let ss = document.styleSheets[0];
+    fn.busy = true;
+    ss.insertRule("* {cursor: wait !important}", 0);
     if (cities.filter(function(x) {return x.selected;}).length < 1) {
+        callback(null);
+        ss.deleteRule(0);
+        fn.busy = false;
         return;
     }
     if (cities.filter(function(x) {return x.nominated;}).length < 1) {
+        callback(null);
+        ss.deleteRule(0);
+        fn.busy = false;
         return;
     }
-    let ss = document.styleSheets[0];
-    ss.insertRule("* {cursor: wait !important}", 0);
-    fn.busy = true;
     setTimeout(function() {
         let rField = document.getElementById("rField");
         let mField = document.getElementById("mField");
@@ -228,7 +234,7 @@ function requestGraph(callback) {
         let copies = cities.map(function(x) {return x.copy();});
         let candidates = copies.filter(function(x) {return x.nominated;});
         let variable = copies.filter(function(x) {return x.selected;})[0];
-        let gen = utils.cycle(utils.permutations.bind(null, candidates));
+        let gen = utils.cycle(utils.permutations.bind(null, candidates, {}));
         for (let x = 0; x < fn.cvs.width; x += step) {
             for (let y = 0; y < fn.cvs.height; y += step) {
                 let init_x = variable.x;
@@ -312,11 +318,11 @@ function poll(cities, candidates, cache) {
                     var dy = city.y + voter.y - candidate.y;
                     var score = -Math.sqrt(dx * dx + dy * dy);
                     votes.push({candidate: candidate, score: score});
-                    utils.insertionSort(
-                        votes,
-                        function(a, b) {return b.score - a.score;}
-                    );
                 }
+                utils.mergeSort(
+                    votes,
+                    function(a, b) {return b.score - a.score;}
+                );
                 if (!(city.selected)) {
                     cache[city.name] = votes;
                 }
