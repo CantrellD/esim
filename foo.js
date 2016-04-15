@@ -62,8 +62,8 @@ function City(x, y) {
             tags.push("Pop: " + this.getPopulation().toString());
         }
         tags.forEach(function(tag, i) {
-            ctx.fillText(tag, this.x + this.radius + 8, this.y + 16 * i);
             ctx.strokeText(tag, this.x + this.radius + 8, this.y + 16 * i);
+            ctx.fillText(tag, this.x + this.radius + 8, this.y + 16 * i);
         }.bind(this));
 
         ctx.beginPath();
