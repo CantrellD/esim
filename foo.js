@@ -318,7 +318,7 @@ function poll(cities, candidates, cache) {
                     var score = -Math.sqrt(dx * dx + dy * dy);
                     votes.push({candidate: candidate, score: score});
                 }
-                utils.mergeSort(
+                utils.insertionSort(
                     votes,
                     function(a, b) {return b.score - a.score;}
                 );

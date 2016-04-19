@@ -68,53 +68,49 @@ var utils = (function() {
         return arr;
     }
 
-    function merge(io, tmp, a, b, c, cmp) {
+    function merge(src, dst, a, b, c, cmp) {
         var i = a;
         var j = b;
         var k = a;
         while (k < c) {
             if (i === b) {
-                tmp[k] = io[j];
+                dst[k] = src[j];
                 k++;
                 j++;
             }
             else if (j === c) {
-                tmp[k] = io[i];
+                dst[k] = src[i];
                 k++;
                 i++;
             }
-            else if (cmp(io[i], io[j]) > 0) {
-                tmp[k] = io[j];
+            else if (cmp(src[i], src[j]) > 0) {
+                dst[k] = src[j];
                 k++;
                 j++;
             }
             else {
-                tmp[k] = io[i];
+                dst[k] = src[i];
                 k++;
                 i++;
             }
         }
-        for (k = a; k < c; k++) {
-            io[k] = tmp[k];
-        }
     }
-
 
     function mergeSort(arr, cmp) {
         var copy = arr.slice(0);
-        function impl(a, b, c) {
+        function impl(x, y, a, b, c) {
             if (a === c) {
                 return;
             }
             if (b - a > 1) {
-                impl(a, (a + b) >> 1, b);
+                impl(y, x, a, (a + b) >> 1, b);
             }
             if (c - b > 1) {
-                impl(b, (b + c) >> 1, c);
+                impl(y, x, b, (b + c) >> 1, c);
             }
-            merge(copy, arr, a, b, c, cmp)
+            merge(x, y, a, b, c, cmp);
         }
-        impl(0, arr.length >> 1, arr.length)
+        impl(copy, arr, 0, arr.length >> 1, arr.length)
         return arr;
     }
 
