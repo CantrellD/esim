@@ -200,6 +200,77 @@ var utils = (function() {
         return ipermute(copy, 0);
     }
 
+    function reEscape(str){
+        return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function strSwap(str, a, b) {
+        var re = new RegExp(reEscape(b), "g");
+        var tmp = [];
+        str.split(a).forEach(function(x) {
+            tmp.push(x.replace(re, a));
+        });
+        return tmp.join(b);
+    }
+
+    function uriEncode(str, subs) {
+        var tmp = str;
+        for (var i = subs.length - 1; i >= 0; i--) {
+            var sub = subs[i];
+            tmp = strSwap(tmp, sub[0], sub[1]);
+        }
+        return encodeURIComponent(tmp);
+    }
+
+    function uriDecode(str, subs) {
+        var tmp = decodeURIComponent(str);
+        for (var i = 0; i < subs.length; i++) {
+            var sub = subs[i];
+            tmp = strSwap(tmp, sub[0], sub[1]);
+        }
+        return tmp;
+    }
+
+    function uri2data(uri, subs) {
+        var uri_suffix = uri.match(/^[^\?]*\?(.*)$/);
+        var ret = {};
+        if (uri_suffix !== null) {
+            uri_suffix[1].split("&").forEach(function(x) {
+                var tmp = x.match(/^([^=]+)=(.*)$/);
+                if (tmp !== null) {
+                    var key = uriDecode(tmp[1], subs);
+                    var val = JSON.parse(uriDecode(tmp[2], subs));
+                    ret[key] = val;
+                }
+            });
+        }
+        return ret;
+    }
+
+    function data2uri(data, subs, uri_prefix) {
+        var tmp = [];
+        for (var x in data) {
+            if (data.hasOwnProperty(x)) {
+                var key = uriEncode(x, subs);
+                var val = uriEncode(JSON.stringify(data[x]), subs);
+                tmp.push(key + "=" + val);
+            }
+        }
+        return uri_prefix + tmp.join("&");
+    }
+
+    function forceBool(arg) {
+        return (arg.toString() === "true");
+    }
+
+    function forceInt(arg) {
+        return parseInt(arg.toString());
+    }
+
+    function forceFloat(arg) {
+        return parseFloat(arg.toString());
+    }
+
     return {
         EvtEnum: EvtEnum,
         i32: i32,
@@ -212,6 +283,13 @@ var utils = (function() {
         shuffle: shuffle,
         permutations: permutations,
         cycle: cycle,
-        asyncFor: asyncFor
+        asyncFor: asyncFor,
+        reEscape: reEscape,
+        strSwap: strSwap,
+        uri2data: uri2data,
+        data2uri: data2uri,
+        forceBool: forceBool,
+        forceInt: forceInt,
+        forceFloat: forceFloat
     };
 })();

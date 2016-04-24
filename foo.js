@@ -1,7 +1,19 @@
 "use strict";
+
+let URI_SUBS = [
+    ["\"", "Q"],
+    [",", "AND"],
+    [":", "IS"],
+    ["{", "OBJ"],
+    ["}", "JBO"],
+    ["[", "LST"],
+    ["]", "TSL"]
+];
+
 let cvs;
 let ctx;
 let img;
+let graphIsVisible = false;
 let cities = [];
 let methods = votesys.methods;
 let colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
@@ -143,6 +155,15 @@ function City(x, y) {
 })();
 
 
+// TODO: This is a hack.
+function withGraphing(callback) {
+    let gBox = document.getElementById("graphBox");
+    let tmp = gBox.checked;
+    gBox.checked = true;
+    callback();
+    gBox.checked = tmp;
+}
+
 function draw() {
     if (!("graph" in draw)) {
         draw.graph = null;
@@ -154,6 +175,7 @@ function draw() {
     drawBotLayer();
     drawMidLayer();
     drawTopLayer();
+    updatePermalink(); // TODO: This is a hack.
 
     function drawBotLayer() {
         ctx.clearRect(0, 0, cvs.width, cvs.height);
@@ -161,8 +183,10 @@ function draw() {
         ctx.fillRect(0, 0, cvs.width, cvs.height);
     }
     function drawMidLayer() {
+        graphIsVisible = false;
         if (draw.graph !== null) {
             ctx.drawImage(draw.graph, 0, 0, xmax, ymax);
+            graphIsVisible = true;
         }
         if (gBox.checked) {
             requestGraph(function(graph) {
@@ -334,6 +358,47 @@ function poll(cities, candidates, cache) {
 
 function main() {
     let EE = utils.EvtEnum;
+    let raw_uri_data = utils.uri2data(window.location.href, URI_SUBS);
+    let uri_data = utils.uri2data(window.location.href, URI_SUBS);
+
+    if ("draw" in raw_uri_data) {
+        uri_data.draw = utils.forceBool(raw_uri_data.draw); // This is used.
+    }
+    if ("step" in raw_uri_data) {
+        uri_data.step = utils.forceInt(raw_uri_data.step);
+        let rField = document.getElementById("rField");
+        rField.value = uri_data.step.toString();
+    }
+    if ("method" in raw_uri_data) {
+        updateMethods();
+        uri_data.method = utils.forceInt(raw_uri_data.method);
+        let mField = document.getElementById("mField");
+        mField.value = methods[uri_data.method].name;
+    }
+    if ("cities" in raw_uri_data) {
+        raw_uri_data.cities.forEach(function(raw_uri_city) {
+            let uri_city = {};
+            uri_city.x = utils.forceInt(raw_uri_city.x);
+            uri_city.y = utils.forceInt(raw_uri_city.y);
+            uri_city.sig = utils.forceFloat(raw_uri_city.sig);
+            uri_city.pop = utils.forceInt(raw_uri_city.pop);
+            uri_city.nom = utils.forceBool(raw_uri_city.nom);
+            uri_city.sel = utils.forceBool(raw_uri_city.sel);
+
+            let city = new City(0, 0);
+            city.x = uri_city.x;
+            city.y = uri_city.y;
+            city.setSigma(uri_city.sig);
+            city.setPopulation(uri_city.pop);
+            city.nominated = uri_city.nom;
+            city.selected = uri_city.sel;
+            cities.push(city);
+        });
+    }
+    if ("version" in raw_uri_data) {
+        uri_data.version = raw_uri_data.version.toString();
+    }
+
     cvs = document.getElementById("myCanvas");
     ctx = cvs.getContext("2d");
     img = new Image();
@@ -346,7 +411,13 @@ function main() {
         else {
             cvs.height = ymax;
         }
-        draw();
+        onUpdate();
+        if ("draw" in uri_data && uri_data.draw) {
+            withGraphing(draw);
+        }
+        else {
+            draw();
+        }
     }
     cvs.addEventListener(EE.MOUSEDOWN, onEvent.bind(null, EE.MOUSEDOWN), false);
     cvs.addEventListener(EE.MOUSEUP, onEvent.bind(null, EE.MOUSEUP), false);
@@ -373,18 +444,11 @@ function main() {
             }
         });
     };
-    // TODO: Kind of a hack.
     document.getElementById("gButton").onclick = function() {
-        let gBox = document.getElementById("graphBox");
-        let tmp = gBox.checked;
         submitNewProperties();
         onUpdate();
-        gBox.checked = true;
-        draw();
-        gBox.checked = tmp;
+        withGraphing(draw);
     }
-    onUpdate();
-    draw();
 }
 
 function onEvent(src, evt) {
@@ -484,10 +548,39 @@ function onUpdate() {
     if (cities.length > 1) {
         utils.assert(cities[0].getPopulation() >= cities[1].getPopulation());
     }
-
     while (cities.length > 0 && cities[cities.length - 1].getPopulation() < 1) {
         cities.pop();
     }
+
+    updatePositions();
+    updateSelection();
+    updateNames();
+    updateColors();
+    updateCityPropertyControls();
+    updateMethods();
+    updateTables();
+}
+
+function updatePositions() {
+    cities.forEach(function(city, i) {
+        city.x = Math.max(city.x, 0);
+        city.x = Math.min(city.x, cvs.width);
+        city.y = Math.max(city.y, 0);
+        city.y = Math.min(city.y, cvs.height);
+    });
+}
+
+function updateSelection() {
+    let flag = false;
+    cities.forEach(function(x) {
+        if (flag) {
+            x.selected = false;
+        }
+        flag = flag || x.selected;
+    });
+}
+
+function updateNames() {
     while (names.length > names.init_len && names.length > cities.length) {
         names.pop();
     }
@@ -496,32 +589,28 @@ function onUpdate() {
     }
     cities.forEach(function(city, i) {
         city.name = names[i];
-        city.x = Math.max(city.x, 0);
-        city.x = Math.min(city.x, cvs.width);
-        city.y = Math.max(city.y, 0);
-        city.y = Math.min(city.y, cvs.height);
     });
-
-    updateColors();
-    updateCityPropertyControls();
-    updateMethodField();
-    updateTables();
 }
 
-function updateMethodField() {
-    let mField = document.getElementById("mField");
-    if (mField.options.length !== methods.length) {
-        while (mField.length > 0) {
-            mField.remove(0);
-        }
-        methods.forEach(function (method) {
-            let option = document.createElement("option");
-            option.text = method.name;
-            option.value = method.name;
-            mField.add(option);
-        });
-        mField.selectedIndex = 0;
+function updateColors() {
+    let candidates = cities.filter(function(x) {return x.nominated;});
+    cities.forEach(function (city) {
+        city.color = "gray";
+    });
+
+    let tooManyColors = (colors.length > candidates.length) ? true : false;
+    while (colors.length > colors.init_len && tooManyColors) {
+        colors.pop();
     }
+    while (candidates.length > colors.length) {
+        let hval = Math.random();
+        let sval = Math.random() % 0.5 + 0.5;
+        let lval = Math.random() % 0.5 + 0.25;
+        colors.push(utils.rgb2str.apply(null, utils.hsl2rgb(hval, sval, lval)));
+    }
+    candidates.forEach(function(candidate, i) {
+        candidate.color = colors[i];
+    });
 }
 
 function updateCityPropertyControls() {
@@ -556,25 +645,20 @@ function updateCityPropertyControls() {
     });
 }
 
-function updateColors() {
-    let candidates = cities.filter(function(x) {return x.nominated;});
-    cities.forEach(function (city) {
-        city.color = "gray";
-    });
-
-    let tooManyColors = (colors.length > candidates.length) ? true : false;
-    while (colors.length > colors.init_len && tooManyColors) {
-        colors.pop();
+function updateMethods() {
+    let mField = document.getElementById("mField");
+    if (mField.options.length !== methods.length) {
+        while (mField.length > 0) {
+            mField.remove(0);
+        }
+        methods.forEach(function (method) {
+            let option = document.createElement("option");
+            option.text = method.name;
+            option.value = method.name;
+            mField.add(option);
+        });
+        mField.value = methods[0].name;
     }
-    while (candidates.length > colors.length) {
-        let hval = Math.random();
-        let sval = Math.random() % 0.5 + 0.5;
-        let lval = Math.random() % 0.5 + 0.25;
-        colors.push(utils.rgb2str.apply(null, utils.hsl2rgb(hval, sval, lval)));
-    }
-    candidates.forEach(function(candidate, i) {
-        candidate.color = colors[i];
-    });
 }
 
 function updateTables() {
@@ -768,3 +852,33 @@ function updateTables() {
     }
 }
 
+function updatePermalink() {
+    let uri_cities = [];
+    let uri_method = 0;
+    methods.forEach(function(x, i) {
+        if (x.name === document.getElementById("mField").value) {
+            uri_method = i;
+        }
+    });
+    cities.forEach(function(city) {
+        uri_cities.push({
+            x: city.x,
+            y: city.y,
+            pop: city.getPopulation(),
+            sig: city.getSigma(),
+            sel: city.selected,
+            nom: city.nominated
+        });
+    });
+    document.getElementById("permalink").href = utils.data2uri(
+        {
+            draw: graphIsVisible,
+            step: parseInt(document.getElementById("rField").value),
+            method: uri_method,
+            cities: uri_cities,
+            version: "1.0"
+        },
+        URI_SUBS,
+        "esim.html?"
+    );
+}
