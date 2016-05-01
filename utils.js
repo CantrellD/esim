@@ -21,13 +21,13 @@ var utils = (function() {
         }
     }
 
-    function gauss(mu, sigma, use_cache) {
+    function gauss(mu, sigma, cache) {
         var u1;
         var u2;
         var tmp;
-        if (use_cache && gauss.cache !== null) {
-            tmp = gauss.cache;
-            gauss.cache = null;
+        if ("value" in cache && cache.value !== null) {
+            tmp = cache.value;
+            cache.value = null;
             return tmp * sigma + mu;
         }
         do {
@@ -37,10 +37,9 @@ var utils = (function() {
         } while (tmp === 0 || tmp > 1.0);
 
         tmp = Math.sqrt((-2.0 * Math.log(tmp)) / tmp);
-        gauss.cache = u2 * tmp;
+        cache.value = u2 * tmp;
         return u1 * tmp * sigma + mu;
     }
-    gauss.cache = null;
 
     function hsl2rgb(a,b,c) {
         a*=6;
@@ -195,7 +194,8 @@ var utils = (function() {
         return ret;
     }
 
-    function permutations(arr) {
+    // TODO: FIXME: Each call to 'next' mutates the object previously returned.
+    function permutations(arr, cache) {
         var copy = arr.slice(0);
         return ipermute(copy, 0);
     }

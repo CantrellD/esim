@@ -14,6 +14,7 @@ let cvs;
 let ctx;
 let img;
 let graphIsVisible = false;
+let allow_caching = true;
 let cities = [];
 let methods = votesys.methods;
 let colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
@@ -133,9 +134,10 @@ function City(x, y) {
                 voters[xy2index[xy]].weight -= 1;
             }
         }
+        let gaussCache = {};
         while (voters.length < arg) {
-            let xval = utils.i32(utils.gauss(0, this.getSigma(), true));
-            let yval = utils.i32(utils.gauss(0, this.getSigma(), true));
+            let xval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
+            let yval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
             let xy = args2xy(xval, yval);
             if (xy in xy2index) {
                 voters[xy2index[xy]].weight += 1;
@@ -257,7 +259,7 @@ function requestGraph(callback) {
         let copies = cities.map(function(x) {return x.copy();});
         let candidates = copies.filter(function(x) {return x.nominated;});
         let variable = copies.filter(function(x) {return x.selected;})[0];
-        let gen = utils.cycle(utils.permutations.bind(null, candidates, {}));
+        let gen = utils.cycle(utils.permutations.bind(null, candidates));
         for (let x = 0; x < fn.cvs.width; x += step) {
             for (let y = 0; y < fn.cvs.height; y += step) {
                 let init_x = variable.x;
@@ -303,6 +305,7 @@ function submitNewProperties() {
 
 function poll(cities, candidates, cache) {
     var ballots = [];
+    var cacheBallots = ("ballots" in cache) ? cache.ballots : null;
     for (var i = 0; i < cities.length; i++) {
         var city = cities[i];
         var voters = city.getVoters();
@@ -311,47 +314,36 @@ function poll(cities, candidates, cache) {
             if (voter.weight === 0) {
                 continue;
             }
-            var votes = [];
-            if (city.name in cache && !(city.selected)) {
-                var cacheVotes = cache[city.name];
-                for (var k = 0; k < cacheVotes.length; k++) {
-                    var cacheVote = cacheVotes[k];
-                    if (cacheVote.candidate.selected) {
-                        var dx = city.x + voter.x - cacheVote.candidate.x;
-                        var dy = city.y + voter.y - cacheVote.candidate.y;
-                        var score = -Math.sqrt(dx * dx + dy * dy);
-                        votes.push({
-                            candidate: cacheVote.candidate,
-                            score: score
-                        });
-                    }
-                    else {
-                        votes.push(cacheVote);
-                    }
-                }
-                utils.insertionSort(
-                    votes,
-                    function(a, b) {return b.score - a.score;}
-                );
+            var ballot;
+            if (city.selected || cacheBallots === null) {
+                ballot = {
+                    weight: voter.weight,
+                    votes: candidates.map(function(x) {
+                        return {candidate: x, score: 1};
+                    })
+                };
             }
             else {
-                for (var k = 0; k < candidates.length; k++) {
-                    var candidate = candidates[k];
-                    var dx = city.x + voter.x - candidate.x;
-                    var dy = city.y + voter.y - candidate.y;
-                    var score = -Math.sqrt(dx * dx + dy * dy);
-                    votes.push({candidate: candidate, score: score});
-                }
-                utils.insertionSort(
-                    votes,
-                    function(a, b) {return b.score - a.score;}
-                );
-                if (!(city.selected)) {
-                    cache[city.name] = votes;
+                ballot = cacheBallots[ballots.length];
+            }
+            var votes = ballot.votes;
+            for (var k = 0; k < votes.length; k++) {
+                var vote = votes[k];
+                if (vote.candidate.selected || vote.score > 0) {
+                    var dx = city.x + voter.x - vote.candidate.x;
+                    var dy = city.y + voter.y - vote.candidate.y;
+                    vote.score = -Math.sqrt(dx * dx + dy * dy);
                 }
             }
-            ballots.push({weight: voter.weight, votes: votes});
+            utils.insertionSort(
+                votes,
+                function(a, b) {return b.score - a.score;}
+            );
+            ballots.push(ballot);
         }
+    }
+    if (allow_caching) {
+        cache.ballots = ballots;
     }
     return ballots;
 }
@@ -461,6 +453,7 @@ function onEvent(src, evt) {
     if (!("cache" in fn)) {
         fn.cache = fn;
         fn.isClick = function(e) {return false;};
+        fn.offset = null;
     }
     if (src === EE.MOUSEDOWN) {
         fn.isClick = function(e) {
@@ -473,6 +466,7 @@ function onEvent(src, evt) {
         if (src === EE.MOUSEDOWN) {
             if (city.checkBounds(x, y) && evt.button === 0 && !city.moving) {
                 city.moving = true;
+                fn.offset = {dx: x - city.x, dy: y - city.y};
                 handled = true;
                 break;
             }
@@ -507,8 +501,8 @@ function onEvent(src, evt) {
         }
         if (src === EE.MOUSEMOVE) {
             if (city.moving) {
-                city.x = utils.i32(x);
-                city.y = utils.i32(y);
+                city.x = utils.i32(x - fn.offset.dx);
+                city.y = utils.i32(y - fn.offset.dy);
                 handled = true;
                 break;
             }
