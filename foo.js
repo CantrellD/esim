@@ -71,9 +71,7 @@ function City(x, y) {
         if (!document.getElementById("nameBox").checked) {
             tags.push(this.name);
         }
-        if (!(document.getElementById("popBox").checked)) {
-            tags.push("Pop: " + this.getPopulation().toString());
-        }
+        tags.push("Pop: " + this.getPopulation().toString());
         tags.forEach(function(tag, i) {
             ctx.strokeText(tag, this.x + this.radius + 8, this.y + 16 * i);
             ctx.fillText(tag, this.x + this.radius + 8, this.y + 16 * i);
@@ -202,6 +200,54 @@ function draw() {
         }
     }
     function drawTopLayer() {
+        ctx.strokeStyle = "black";
+        if (graphIsVisible && !(document.getElementById("lineBox").checked)) {
+            let variable = cities.filter(function(x) {return x.selected;})[0];
+            if (variable.nominated) {
+                cities.forEach(function(ci, i) {
+                    if (ci.selected || ci.nominated) {
+                        return;
+                    }
+                    cities.forEach(function(cj, j) {
+                        if (i === j || cj.selected || !(cj.nominated)) {
+                            return;
+                        }
+                        let dx = cj.x - ci.x;
+                        let dy = cj.y - ci.y;
+                        let r = Math.sqrt(dx * dx + dy * dy);
+                        ctx.beginPath();
+                        ctx.arc(ci.x, ci.y, r, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    });
+                });
+            }
+            else {
+                cities.forEach(function(ci, i) {
+                    if (ci.selected || !(ci.nominated)) {
+                        return;
+                    }
+                    cities.forEach(function(cj, j) {
+                        if (i === j || cj.selected || !(cj.nominated)) {
+                            return;
+                        }
+                        if (cj.y - ci.y !== 0) {
+                            let m = -(cj.x - ci.x) / (cj.y - ci.y);
+                            let b = (ci.y + cj.y) / 2 - m * (ci.x + cj.x) / 2;
+                            ctx.beginPath();
+                            ctx.moveTo(0, b);
+                            ctx.lineTo(cvs.width, m * cvs.width + b);
+                            ctx.stroke();
+                        }
+                        else {
+                            ctx.beginPath();
+                            ctx.moveTo((ci.x + cj.x) / 2, 0);
+                            ctx.lineTo((ci.x + cj.x) / 2, cvs.height);
+                            ctx.stroke();
+                        }
+                    });
+                });
+            }
+        }
         ctx.drawImage(img, 0, 0, xmax, ymax);
         ctx.fillStyle = "white";
         cities.forEach(function (city) {
@@ -420,7 +466,7 @@ function main() {
     document.getElementById("cBox").onclick = updateTables;
     document.getElementById("eBox").onclick = updateTables;
     document.getElementById("nameBox").onclick = draw;
-    document.getElementById("popBox").onclick = draw;
+    document.getElementById("lineBox").onclick = draw;
     document.getElementById("graphBox").onclick = draw;
     document.getElementById("uButton").onclick = function() {
         submitNewProperties();
