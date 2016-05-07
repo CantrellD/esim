@@ -306,8 +306,8 @@ function requestGraph(callback) {
         let candidates = copies.filter(function(x) {return x.nominated;});
         let variable = copies.filter(function(x) {return x.selected;})[0];
         let gen = utils.cycle(utils.permutations.bind(null, candidates));
-        for (let x = 0; x < fn.cvs.width; x += step) {
-            for (let y = 0; y < fn.cvs.height; y += step) {
+        for (let x = 0; x < fn.cvs.width; x = x + step) {
+            for (let y = 0; y < fn.cvs.height; y = y + step) {
                 let init_x = variable.x;
                 let init_y = variable.y;
                 let ballots;
@@ -361,7 +361,7 @@ function poll(cities, candidates, cache) {
                 continue;
             }
             var ballot;
-            if (city.selected || cacheBallots === null) {
+            if (cacheBallots === null) {
                 ballot = {
                     weight: voter.weight,
                     votes: candidates.map(function(x) {
@@ -371,6 +371,11 @@ function poll(cities, candidates, cache) {
             }
             else {
                 ballot = cacheBallots[ballots.length];
+                if (city.selected) {
+                    for (var k = 0; k < ballot.votes.length; k++) {
+                        ballot.votes[k].score = 1;
+                    }
+                }
             }
             var votes = ballot.votes;
             for (var k = 0; k < votes.length; k++) {
