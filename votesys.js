@@ -3,16 +3,16 @@
 var votesys = (function() {
 
     function plurality(candidates, ballots, cache) {
-        let ret = [];
-        let name2index = {};
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        var ret = [];
+        var name2index = {};
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
             name2index[candidate.name] = i;
             ret.push({candidate: candidate, score: 0});
         }
-        for (let i = 0; i < ballots.length; i++) {
-            let ballot = ballots[i];
-            let vote = ballot.votes[0];
+        for (var i = 0; i < ballots.length; i++) {
+            var ballot = ballots[i];
+            var vote = ballot.votes[0];
             ret[name2index[vote.candidate.name]].score += ballot.weight;
         }
         ret.sort(function(a, b) {
@@ -22,24 +22,24 @@ var votesys = (function() {
     }
 
     function approval(candidates, ballots, cache) {
-        let ret = [];
-        let name2index = {};
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        var ret = [];
+        var name2index = {};
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
             name2index[candidate.name] = i;
             ret.push({candidate: candidate, score: 0});
         }
-        for (let i = 0; i < ballots.length; i++) {
-            let ballot = ballots[i];
-            let sum = 0;
-            for (let j = 0; j < ballot.votes.length; j++) {
-                let vote = ballot.votes[j];
+        for (var i = 0; i < ballots.length; i++) {
+            var ballot = ballots[i];
+            var sum = 0;
+            for (var j = 0; j < ballot.votes.length; j++) {
+                var vote = ballot.votes[j];
                 sum += vote.score;
             }
-            let avg = sum / ballot.votes.length;
-            for (let j = 0; j < ballot.votes.length; j++) {
-                let vote = ballot.votes[j];
-                let candidate = vote.candidate;
+            var avg = sum / ballot.votes.length;
+            for (var j = 0; j < ballot.votes.length; j++) {
+                var vote = ballot.votes[j];
+                var candidate = vote.candidate;
                 if (vote.score > avg) {
                     ret[name2index[candidate.name]].score += ballot.weight;
                 }
@@ -58,67 +58,67 @@ var votesys = (function() {
         if (candidates.length < 2) {
             return candidates;
         }
-        let ret = [];
-        let name2index = {};
-        for (let i = 0; i < candidates.length; i++) {
-            let candidate = candidates[i];
+        var ret = [];
+        var name2index = {};
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
             name2index[candidate.name] = i;
             ret.push({candidate: candidate, score: 0});
         }
-        for (let i = 0; i < ballots.length; i++) {
-            let ballot = ballots[i];
-            for (let j = 0; j < ballot.votes.length; j++) {
-                let vote = ballot.votes[j];
+        for (var i = 0; i < ballots.length; i++) {
+            var ballot = ballots[i];
+            for (var j = 0; j < ballot.votes.length; j++) {
+                var vote = ballot.votes[j];
                 if (vote.candidate.name in name2index) {
                     ret[name2index[vote.candidate.name]].score += ballot.weight;
                     break;
                 }
             }
         }
-        let mindex = 0;
-        for (let i = 1; i < ret.length; i++) {
+        var mindex = 0;
+        for (var i = 1; i < ret.length; i++) {
             if (ret[i].score < ret[mindex].score) {
                 mindex = i;
             }
         }
-        let last = ret.splice(mindex, 1).map(function(x) {return x.candidate;});
-        let nxtc = ret.map(function(x) {return x.candidate;});
+        var last = ret.splice(mindex, 1).map(function(x) {return x.candidate;});
+        var nxtc = ret.map(function(x) {return x.candidate;});
         return irv(nxtc, ballots).concat(last);
     }
 
     function schulze(candidates, ballots, cache) {
-        let pairs = {};
-        for (let i = 0; i < candidates.length; i++) {
-            let winner = candidates[i];
+        var pairs = {};
+        for (var i = 0; i < candidates.length; i++) {
+            var winner = candidates[i];
             pairs[winner.name] = {};
-            for (let j = 0; j < candidates.length; j++) {
-                let loser = candidates[j];
+            for (var j = 0; j < candidates.length; j++) {
+                var loser = candidates[j];
                 pairs[winner.name][loser.name] = 0;
             }
         }
-        for (let i = 0; i < ballots.length; i++) {
-            let ballot = ballots[i];
-            for (let j = 0; j < ballot.votes.length; j++) {
-                let winner = ballot.votes[j].candidate;
-                for (let k = j + 1; k < ballot.votes.length; k++) {
-                    let loser = ballot.votes[k].candidate;
+        for (var i = 0; i < ballots.length; i++) {
+            var ballot = ballots[i];
+            for (var j = 0; j < ballot.votes.length; j++) {
+                var winner = ballot.votes[j].candidate;
+                for (var k = j + 1; k < ballot.votes.length; k++) {
+                    var loser = ballot.votes[k].candidate;
                     pairs[winner.name][loser.name] += ballot.weight;
                 }
             }
         }
-        let pathVals = {};
-        for (let i = 0; i < candidates.length; i++) {
-            let ci = candidates[i];
+        var pathVals = {};
+        for (var i = 0; i < candidates.length; i++) {
+            var ci = candidates[i];
             pathVals[ci.name] = {};
-            for (let j = 0; j < candidates.length; j++) {
-                let cj = candidates[j];
+            for (var j = 0; j < candidates.length; j++) {
+                var cj = candidates[j];
                 pathVals[ci.name][cj.name] = null;
             }
         }
-        for (let i = 0; i < candidates.length; i++) {
-            let ci = candidates[i];
-            for (let j = 0; j < candidates.length; j++) {
-                let cj = candidates[j];
+        for (var i = 0; i < candidates.length; i++) {
+            var ci = candidates[i];
+            for (var j = 0; j < candidates.length; j++) {
+                var cj = candidates[j];
                 if (i !== j) {
                     if (pairs[ci.name][cj.name] > pairs[cj.name][ci.name]) {
                         pathVals[ci.name][cj.name] = pairs[ci.name][cj.name];
@@ -129,18 +129,18 @@ var votesys = (function() {
                 }
             }
         }
-        let max = Math.max;
-        for (let i = 0; i < candidates.length; i++) {
-            let ci = candidates[i];
-            for (let j = 0; j < candidates.length; j++) {
-                let cj = candidates[j];
+        var max = Math.max;
+        for (var i = 0; i < candidates.length; i++) {
+            var ci = candidates[i];
+            for (var j = 0; j < candidates.length; j++) {
+                var cj = candidates[j];
                 if (i !== j) {
-                    for (let k = 0; k < candidates.length; k++) {
-                        let ck = candidates[k];
+                    for (var k = 0; k < candidates.length; k++) {
+                        var ck = candidates[k];
                         if (i !== k && j !== k) {
-                            let pvjk = pathVals[cj.name][ck.name];
-                            let pvji = pathVals[cj.name][ci.name];
-                            let pvik = pathVals[ci.name][ck.name];
+                            var pvjk = pathVals[cj.name][ck.name];
+                            var pvji = pathVals[cj.name][ci.name];
+                            var pvik = pathVals[ci.name][ck.name];
                             if (pvji < pvik) {
                                 pathVals[cj.name][ck.name] = max(pvjk, pvji);
                             }
@@ -152,7 +152,7 @@ var votesys = (function() {
                 }
             }
         }
-        let ret = candidates.slice(0);
+        var ret = candidates.slice(0);
         ret.sort(function(a, b) {
             return pathVals[b.name][a.name] - pathVals[a.name][b.name];
         });

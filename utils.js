@@ -7,7 +7,7 @@ var utils = (function() {
         MOUSEMOVE: "mousemove",
         WHEEL: "wheel",
         CONTEXTMENU: "contextmenu"
-    }
+    };
 
     var ITR_END = {value: undefined, done: true};
 
@@ -109,7 +109,7 @@ var utils = (function() {
             }
             merge(x, y, a, b, c, cmp);
         }
-        impl(copy, arr, 0, arr.length >> 1, arr.length)
+        impl(copy, arr, 0, arr.length >> 1, arr.length);
         return arr;
     }
 
@@ -143,7 +143,7 @@ var utils = (function() {
                 nxt = itr.next();
             }
             return nxt;
-        }
+        };
         return ret;
     }
 
@@ -178,7 +178,7 @@ var utils = (function() {
                     }
                 }
                 return nxt;
-            }
+            };
         }
         else {
             ret.next = function() {
@@ -271,6 +271,32 @@ var utils = (function() {
         return parseFloat(arg.toString());
     }
 
+    function applyTo(thisArg, argsArray, func) {
+        func.apply(thisArg, argsArray);
+    }
+
+    function freeze(arg) {
+        try {
+            return Object.freeze(arg);
+        }
+        catch (err) {
+            return null;
+        }
+    }
+
+    function isFrozen(arg) {
+        try {
+            return Object.isFrozen(arg);
+        }
+        catch (err) {
+            return null;
+        }
+    }
+
+    function orElse(arg, dflt) {
+        return (arg === null) ? dflt : arg;
+    }
+
     return {
         EvtEnum: EvtEnum,
         i32: i32,
@@ -290,6 +316,10 @@ var utils = (function() {
         data2uri: data2uri,
         forceBool: forceBool,
         forceInt: forceInt,
-        forceFloat: forceFloat
+        forceFloat: forceFloat,
+        applyTo: applyTo,
+        freeze: freeze,
+        isFrozen: isFrozen,
+        orElse: orElse
     };
 })();

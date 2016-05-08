@@ -1,6 +1,6 @@
 "use strict";
 
-let URI_SUBS = [
+var URI_SUBS = [
     ["\"", "Q"],
     [",", "AND"],
     [":", "IS"],
@@ -10,15 +10,15 @@ let URI_SUBS = [
     ["]", "TSL"]
 ];
 
-let cvs;
-let ctx;
-let img;
-let graphIsVisible = false;
-let allow_caching = true;
-let cities = [];
-let methods = votesys.methods;
-let colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
-let names = [
+var cvs;
+var ctx;
+var img;
+var graphIsVisible = false;
+var allow_caching = true;
+var cities = [];
+var methods = votesys.methods;
+var colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
+var names = [
     "Memphis", "Nashville", "Knoxville", "Chattanooga",
     "Clarksville", "Murfreesboro", "Franklin", "Jackson",
     "Johnson City", "Bartlett", "Hendersonville", "Kingsport",
@@ -32,11 +32,9 @@ colors.init_len = colors.length;
 names.init_len = names.length;
 
 function City(x, y) {
-    let voters = [];
-    Object.freeze(voters);
     this.x = x;
     this.y = y;
-    this._voters = voters;
+    this._voters = utils.orElse(utils.freeze([]), []);
     this._sigma = 0;
     this.radius = 8;
     this.moving = false;
@@ -45,29 +43,28 @@ function City(x, y) {
     this.name = "N/A";
     this.color = "gray";
 }
-(function() {
-    let cls = City.prototype;
+utils.applyTo(null, [City.prototype], function(cls) {
     cls.getVoters = function() {
         return this._voters;
     };
     cls.setVoters = function(voters) {
-        if (Object.isFrozen(voters)) {
+        if (utils.orElse(utils.isFrozen(voters), false)) {
             this._voters = voters;
         }
         else {
-            this._voters = voters.slice(0);
-            Object.freeze(this._voters);
+            voters = voters.slice(0);
+            this._voters = utils.orElse(utils.freeze(voters), voters);
         }
     };
     cls.checkBounds = function(x, y) {
-        let dx = x - this.x;
-        let dy = y - this.y;
+        var dx = x - this.x;
+        var dy = y - this.y;
         return Math.sqrt(dx * dx + dy * dy) <= this.radius;
     };
     cls.draw = function(ctx) {
         ctx.fillStyle = "black";
         ctx.strokeStyle = "white";
-        let tags = [];
+        var tags = [];
         if (!document.getElementById("nameBox").checked) {
             tags.push(this.name);
         }
@@ -85,8 +82,8 @@ function City(x, y) {
         ctx.stroke();
     };
     cls.copy = function() {
-        let ret = new City(0, 0);
-        for (let x in this) {
+        var ret = new City(0, 0);
+        for (var x in this) {
             if (this.hasOwnProperty(x)) {
                 ret[x] = this[x];
             }
@@ -100,7 +97,7 @@ function City(x, y) {
         if (arg === this.getSigma()) {
             return;
         }
-        let pop = this.getPopulation();
+        var pop = this.getPopulation();
         this.setPopulation(0);
         this._sigma = arg;
         this.setPopulation(pop);
@@ -112,31 +109,29 @@ function City(x, y) {
         if (arg === this.getPopulation()) {
             return;
         }
-        let counter = 0;
-        let min = Math.min;
-        let voters = this.getVoters().map(function(voter) {
+        var voters = this.getVoters().map(function(voter) {
             return {x: voter.x, y: voter.y, weight: voter.weight};
         });
-        let xy2index = {};
+        var xy2index = {};
         voters.forEach(function (voter, i) {
-            let xy = args2xy(voter.x, voter.y);
+            var xy = args2xy(voter.x, voter.y);
             if (xy in xy2index) {
                 return; //continue
             }
             xy2index[xy] = i;
         });
         while (voters.length > arg) {
-            let voter = voters.pop();
+            var voter = voters.pop();
             if (voter.weight < 1) {
-                let xy = args2xy(voter.x, voter.y);
+                var xy = args2xy(voter.x, voter.y);
                 voters[xy2index[xy]].weight -= 1;
             }
         }
-        let gaussCache = {};
+        var gaussCache = {};
         while (voters.length < arg) {
-            let xval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
-            let yval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
-            let xy = args2xy(xval, yval);
+            var xval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
+            var yval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
+            var xy = args2xy(xval, yval);
             if (xy in xy2index) {
                 voters[xy2index[xy]].weight += 1;
                 voters.push({x: xval, y: yval, weight: 0});
@@ -146,19 +141,18 @@ function City(x, y) {
                 voters.push({x: xval, y: yval, weight: 1});
             }
         }
-        Object.freeze(voters);
-        this.setVoters(voters);
+        this.setVoters(utils.orElse(utils.freeze(voters), voters));
         function args2xy(x, y) {
             return "x" + x.toString() + "y" + y.toString();
         }
     };
-})();
+});
 
 
-// TODO: This is a hack.
+// TODO: Find a better solution maybe.
 function withGraphing(callback) {
-    let gBox = document.getElementById("graphBox");
-    let tmp = gBox.checked;
+    var gBox = document.getElementById("graphBox");
+    var tmp = gBox.checked;
     gBox.checked = true;
     callback();
     gBox.checked = tmp;
@@ -168,14 +162,16 @@ function draw() {
     if (!("graph" in draw)) {
         draw.graph = null;
     }
-    let xmax = cvs.width;
-    let ymax = cvs.height;
-    let gBox = document.getElementById("graphBox");
+    var xmax = cvs.width;
+    var ymax = cvs.height;
+    var gBox = document.getElementById("graphBox");
 
     drawBotLayer();
     drawMidLayer();
     drawTopLayer();
-    updatePermalink(); // TODO: This is a hack.
+
+    // TODO: Find a better solution maybe.
+    updatePermalink();
 
     function drawBotLayer() {
         ctx.clearRect(0, 0, cvs.width, cvs.height);
@@ -202,19 +198,19 @@ function draw() {
     function drawTopLayer() {
         ctx.strokeStyle = "black";
         if (graphIsVisible && !(document.getElementById("lineBox").checked)) {
-            let variable = cities.filter(function(x) {return x.selected;})[0];
+            var variable = cities.filter(function(x) {return x.selected;})[0];
             if (variable.nominated) {
                 cities.forEach(function(ci, i) {
                     if (ci.selected || ci.nominated) {
-                        return;
+                        return; //continue
                     }
                     cities.forEach(function(cj, j) {
                         if (i === j || cj.selected || !(cj.nominated)) {
-                            return;
+                            return; //continue
                         }
-                        let dx = cj.x - ci.x;
-                        let dy = cj.y - ci.y;
-                        let r = Math.sqrt(dx * dx + dy * dy);
+                        var dx = cj.x - ci.x;
+                        var dy = cj.y - ci.y;
+                        var r = Math.sqrt(dx * dx + dy * dy);
                         ctx.beginPath();
                         ctx.arc(ci.x, ci.y, r, 0, 2 * Math.PI);
                         ctx.stroke();
@@ -224,15 +220,15 @@ function draw() {
             else {
                 cities.forEach(function(ci, i) {
                     if (ci.selected || !(ci.nominated)) {
-                        return;
+                        return; //continue
                     }
                     cities.forEach(function(cj, j) {
                         if (i === j || cj.selected || !(cj.nominated)) {
-                            return;
+                            return; //continue
                         }
                         if (cj.y - ci.y !== 0) {
-                            let m = -(cj.x - ci.x) / (cj.y - ci.y);
-                            let b = (ci.y + cj.y) / 2 - m * (ci.x + cj.x) / 2;
+                            var m = -(cj.x - ci.x) / (cj.y - ci.y);
+                            var b = (ci.y + cj.y) / 2 - m * (ci.x + cj.x) / 2;
                             ctx.beginPath();
                             ctx.moveTo(0, b);
                             ctx.lineTo(cvs.width, m * cvs.width + b);
@@ -252,8 +248,8 @@ function draw() {
         ctx.fillStyle = "white";
         cities.forEach(function (city) {
             city.getVoters().forEach(function (voter) {
-                let truex = city.x + voter.x;
-                let truey = city.y + voter.y;
+                var truex = city.x + voter.x;
+                var truey = city.y + voter.y;
                 ctx.fillRect(truex, truey, 1, 1);
             });
         });
@@ -264,7 +260,7 @@ function draw() {
 }
 
 function requestGraph(callback) {
-    let fn = requestGraph;
+    var fn = requestGraph;
     if (!("cache" in fn)) {
         fn.cache = fn;
         fn.busy = false;
@@ -276,7 +272,7 @@ function requestGraph(callback) {
     if (fn.busy) {
         return;
     }
-    let ss = document.styleSheets[0];
+    var ss = document.styleSheets[0];
     fn.busy = true;
     ss.insertRule("* {cursor: wait !important}", 0);
     if (cities.filter(function(x) {return x.selected;}).length < 1) {
@@ -292,26 +288,26 @@ function requestGraph(callback) {
         return;
     }
     setTimeout(function() {
-        let rField = document.getElementById("rField");
-        let mField = document.getElementById("mField");
-        let step = utils.i32(rField.value);
-        let offset = utils.i32(step / 2);
-        let method = methods.filter(function(x) {
+        var rField = document.getElementById("rField");
+        var mField = document.getElementById("mField");
+        var step = utils.i32(rField.value);
+        var offset = utils.i32(step / 2);
+        var method = methods.filter(function(x) {
             return x.name === mField.value;
         })[0];
-        let evilCache = {};
-        let goodCache = {};
+        var evilCache = {};
+        var goodCache = {};
 
-        let copies = cities.map(function(x) {return x.copy();});
-        let candidates = copies.filter(function(x) {return x.nominated;});
-        let variable = copies.filter(function(x) {return x.selected;})[0];
-        let gen = utils.cycle(utils.permutations.bind(null, candidates));
-        for (let x = 0; x < fn.cvs.width; x = x + step) {
-            for (let y = 0; y < fn.cvs.height; y = y + step) {
-                let init_x = variable.x;
-                let init_y = variable.y;
-                let ballots;
-                let winner;
+        var copies = cities.map(function(x) {return x.copy();});
+        var candidates = copies.filter(function(x) {return x.nominated;});
+        var variable = copies.filter(function(x) {return x.selected;})[0];
+        var gen = utils.cycle(utils.permutations.bind(null, candidates));
+        for (var x = 0; x < fn.cvs.width; x = x + step) {
+            for (var y = 0; y < fn.cvs.height; y = y + step) {
+                var init_x = variable.x;
+                var init_y = variable.y;
+                var ballots;
+                var winner;
                 variable.x = x;
                 variable.y = y;
                 ballots = poll(copies, candidates, goodCache);
@@ -329,10 +325,10 @@ function requestGraph(callback) {
 }
 
 function submitNewProperties() {
-    let xval = parseFloat(document.getElementById("xField").value);
-    let yval = parseFloat(document.getElementById("yField").value);
-    let pval = parseFloat(document.getElementById("pField").value);
-    let sval = parseFloat(document.getElementById("sField").value);
+    var xval = parseFloat(document.getElementById("xField").value);
+    var yval = parseFloat(document.getElementById("yField").value);
+    var pval = parseFloat(document.getElementById("pField").value);
+    var sval = parseFloat(document.getElementById("sField").value);
     cities.forEach(function(city) {
         if (city.selected) {
             if (!isNaN(xval)) { city.x = utils.i32(xval); }
@@ -400,27 +396,27 @@ function poll(cities, candidates, cache) {
 }
 
 function main() {
-    let EE = utils.EvtEnum;
-    let raw_uri_data = utils.uri2data(window.location.href, URI_SUBS);
-    let uri_data = utils.uri2data(window.location.href, URI_SUBS);
+    var EE = utils.EvtEnum;
+    var raw_uri_data = utils.uri2data(window.location.href, URI_SUBS);
+    var uri_data = utils.uri2data(window.location.href, URI_SUBS);
 
     if ("draw" in raw_uri_data) {
         uri_data.draw = utils.forceBool(raw_uri_data.draw); // This is used.
     }
     if ("step" in raw_uri_data) {
         uri_data.step = utils.forceInt(raw_uri_data.step);
-        let rField = document.getElementById("rField");
+        var rField = document.getElementById("rField");
         rField.value = uri_data.step.toString();
     }
     if ("method" in raw_uri_data) {
         updateMethods();
         uri_data.method = utils.forceInt(raw_uri_data.method);
-        let mField = document.getElementById("mField");
+        var mField = document.getElementById("mField");
         mField.value = methods[uri_data.method].name;
     }
     if ("cities" in raw_uri_data) {
         raw_uri_data.cities.forEach(function(raw_uri_city) {
-            let uri_city = {};
+            var uri_city = {};
             uri_city.x = utils.forceInt(raw_uri_city.x);
             uri_city.y = utils.forceInt(raw_uri_city.y);
             uri_city.sig = utils.forceFloat(raw_uri_city.sig);
@@ -428,7 +424,7 @@ function main() {
             uri_city.nom = utils.forceBool(raw_uri_city.nom);
             uri_city.sel = utils.forceBool(raw_uri_city.sel);
 
-            let city = new City(0, 0);
+            var city = new City(0, 0);
             city.x = uri_city.x;
             city.y = uri_city.y;
             city.setSigma(uri_city.sig);
@@ -447,7 +443,7 @@ function main() {
     img = new Image();
     img.src = "tenn.png";
     img.onload = function() {
-        let ymax = (img.height / img.width) * cvs.width;
+        var ymax = (img.height / img.width) * cvs.width;
         if (ymax > cvs.height) {
             cvs.width = (img.width / img.height) * cvs.height;
         }
@@ -461,7 +457,7 @@ function main() {
         else {
             draw();
         }
-    }
+    };
     cvs.addEventListener(EE.MOUSEDOWN, onEvent.bind(null, EE.MOUSEDOWN), false);
     cvs.addEventListener(EE.MOUSEUP, onEvent.bind(null, EE.MOUSEUP), false);
     cvs.addEventListener(EE.MOUSEMOVE, onEvent.bind(null, EE.MOUSEMOVE), false);
@@ -491,16 +487,16 @@ function main() {
         submitNewProperties();
         onUpdate();
         withGraphing(draw);
-    }
+    };
 }
 
 function onEvent(src, evt) {
-    let fn = onEvent;
-    let EE = utils.EvtEnum;
-    let box = cvs.getBoundingClientRect();
-    let x = (evt.clientX - box.left) * cvs.width / (box.right - box.left);
-    let y = (evt.clientY - box.top) * cvs.height / (box.bottom - box.top);
-    let handled = false;
+    var fn = onEvent;
+    var EE = utils.EvtEnum;
+    var box = cvs.getBoundingClientRect();
+    var x = (evt.clientX - box.left) * cvs.width / (box.right - box.left);
+    var y = (evt.clientY - box.top) * cvs.height / (box.bottom - box.top);
+    var handled = false;
     if (!("cache" in fn)) {
         fn.cache = fn;
         fn.isClick = function(e) {return false;};
@@ -508,12 +504,12 @@ function onEvent(src, evt) {
     }
     if (src === EE.MOUSEDOWN) {
         fn.isClick = function(e) {
-            let eq = function(x, y) {return utils.i32(x) === utils.i32(y);};
+            var eq = function(x, y) {return utils.i32(x) === utils.i32(y);};
             return e.button === evt.button && eq(e.x, evt.x) && eq(e.y, evt.y);
         };
     }
-    for (let i = cities.length - 1; i > -1; i--) {
-        let city = cities[i];
+    for (var i = cities.length - 1; i > -1; i--) {
+        var city = cities[i];
         if (src === EE.MOUSEDOWN) {
             if (city.checkBounds(x, y) && evt.button === 0 && !city.moving) {
                 city.moving = true;
@@ -530,7 +526,7 @@ function onEvent(src, evt) {
             if (evt.button === 0 && city.moving) {
                 city.moving = false;
                 if (fn.isClick(evt)) {
-                    let tmp = city.selected;
+                    var tmp = city.selected;
                     cities.forEach(function(x) {x.selected = false;});
                     city.selected = !tmp;
                 }
@@ -616,7 +612,7 @@ function updatePositions() {
 }
 
 function updateSelection() {
-    let flag = false;
+    var flag = false;
     cities.forEach(function(x) {
         if (flag) {
             x.selected = false;
@@ -638,19 +634,19 @@ function updateNames() {
 }
 
 function updateColors() {
-    let candidates = cities.filter(function(x) {return x.nominated;});
+    var candidates = cities.filter(function(x) {return x.nominated;});
     cities.forEach(function (city) {
         city.color = "gray";
     });
 
-    let tooManyColors = (colors.length > candidates.length) ? true : false;
+    var tooManyColors = (colors.length > candidates.length) ? true : false;
     while (colors.length > colors.init_len && tooManyColors) {
         colors.pop();
     }
     while (candidates.length > colors.length) {
-        let hval = Math.random();
-        let sval = Math.random() % 0.5 + 0.5;
-        let lval = Math.random() % 0.5 + 0.25;
+        var hval = Math.random();
+        var sval = Math.random() % 0.5 + 0.5;
+        var lval = Math.random() % 0.5 + 0.25;
         colors.push(utils.rgb2str.apply(null, utils.hsl2rgb(hval, sval, lval)));
     }
     candidates.forEach(function(candidate, i) {
@@ -659,14 +655,14 @@ function updateColors() {
 }
 
 function updateCityPropertyControls() {
-    let xField = document.getElementById("xField");
-    let yField = document.getElementById("yField");
-    let pField = document.getElementById("pField");
-    let sField = document.getElementById("sField");
-    let nNoRad = document.getElementById("nNoRad");
-    let nYesRad = document.getElementById("nYesRad");
-    let fields = [xField, yField, pField, sField];
-    let rads = [nNoRad, nYesRad];
+    var xField = document.getElementById("xField");
+    var yField = document.getElementById("yField");
+    var pField = document.getElementById("pField");
+    var sField = document.getElementById("sField");
+    var nNoRad = document.getElementById("nNoRad");
+    var nYesRad = document.getElementById("nYesRad");
+    var fields = [xField, yField, pField, sField];
+    var rads = [nNoRad, nYesRad];
     fields.forEach(function (field) {
         field.value = "";
         field.disabled = true;
@@ -691,13 +687,13 @@ function updateCityPropertyControls() {
 }
 
 function updateMethods() {
-    let mField = document.getElementById("mField");
+    var mField = document.getElementById("mField");
     if (mField.options.length !== methods.length) {
         while (mField.length > 0) {
             mField.remove(0);
         }
         methods.forEach(function (method) {
-            let option = document.createElement("option");
+            var option = document.createElement("option");
             option.text = method.name;
             option.value = method.name;
             mField.add(option);
@@ -707,9 +703,9 @@ function updateMethods() {
 }
 
 function updateTables() {
-    let candidates = cities.filter(function(x) {return x.nominated;});
-    let ballots = poll(cities, candidates, {});
-    let name2index = {};
+    var candidates = cities.filter(function(x) {return x.nominated;});
+    var ballots = poll(cities, candidates, {});
+    var name2index = {};
     candidates.forEach(function(candidate, i) {
         name2index[candidate.name] = i;
     });
@@ -719,8 +715,8 @@ function updateTables() {
     // Everything else in updateTables is a function definition.
 
     function rebuildTable(tbl, numRows, numCols) {
-        let hdr = tbl.getElementsByTagName("thead")[0];
-        let bdy = tbl.getElementsByTagName("tbody")[0];
+        var hdr = tbl.getElementsByTagName("thead")[0];
+        var bdy = tbl.getElementsByTagName("tbody")[0];
 
         // Destroy the existing header and body.
         while (hdr.rows.length > 0) {
@@ -731,32 +727,32 @@ function updateTables() {
         }
 
         // Build the header.
-        let row = hdr.insertRow(hdr.rows.length);
-        row.appendChild(document.createElement("th"));
-        for (let i = 0; i < numCols; i++) {
-            let cell = row.appendChild(document.createElement("th"));
+        var hdr_row = hdr.insertRow(hdr.rows.length);
+        hdr_row.appendChild(document.createElement("th"));
+        for (var i = 0; i < numCols; i++) {
+            var cell = hdr_row.appendChild(document.createElement("th"));
             cell.style.color = "black";
             cell.appendChild(document.createTextNode(""));
         }
 
         // Build the body.
-        for (let i = 0; i < numRows; i++) {
-            let row = bdy.insertRow(bdy.rows.length);
-            let cell = row.appendChild(document.createElement("th"));
-            cell.style.color = "black";
-            cell.appendChild(document.createTextNode(""));
-            for (let j = 0; j < numCols; j++) {
-                let cell = row.appendChild(document.createElement("td"));
-                cell.appendChild(document.createTextNode(""))
+        for (var i = 0; i < numRows; i++) {
+            var row = bdy.insertRow(bdy.rows.length);
+            var header_cell = row.appendChild(document.createElement("th"));
+            header_cell.style.color = "black";
+            header_cell.appendChild(document.createTextNode(""));
+            for (var j = 0; j < numCols; j++) {
+                var data_cell = row.appendChild(document.createElement("td"));
+                data_cell.appendChild(document.createTextNode(""));
             }
         }
     }
 
     function updateTableCell(tbl, row, col, msg, color) {
-        let hdr = tbl.getElementsByTagName("thead")[0];
-        let bdy = tbl.getElementsByTagName("tbody")[0];
+        var hdr = tbl.getElementsByTagName("thead")[0];
+        var bdy = tbl.getElementsByTagName("tbody")[0];
 
-        let cell = null;
+        var cell = null;
         if (row < 0) {
             cell = hdr.children[row + 1].children[col + 1];
         }
@@ -771,7 +767,7 @@ function updateTables() {
     }
 
     function updateOrdinalResultsTable() {
-        let tbl = document.getElementById("myOrdinalResults");
+        var tbl = document.getElementById("myOrdinalResults");
 
         tbl.style.visibility = "hidden";
         rebuildTable(tbl, candidates.length, candidates.length);
@@ -788,39 +784,39 @@ function updateTables() {
             updateTableCell(tbl, -1, i, candidate.name + " N", candidate.color);
         });
         // Update the table contents.
-        let tableData = [];
-        let dataDenom = 0;
+        var tableData = [];
+        var dataDenom = 0;
 
         candidates.forEach(function (candidate) {
-            let rowData = [];
+            var rowData = [];
             while (rowData.length < candidates.length) {
                 rowData.push(0);
             }
             tableData.push(rowData);
         });
         ballots.forEach(function (ballot) {
-            for (let j = 0; j < ballot.votes.length; j++) {
-                let winner_id = name2index[ballot.votes[j].candidate.name];
-                for (let k = j + 1; k < ballot.votes.length; k++) {
-                    let loser_id = name2index[ballot.votes[k].candidate.name];
+            for (var j = 0; j < ballot.votes.length; j++) {
+                var winner_id = name2index[ballot.votes[j].candidate.name];
+                for (var k = j + 1; k < ballot.votes.length; k++) {
+                    var loser_id = name2index[ballot.votes[k].candidate.name];
                     tableData[winner_id][loser_id] += ballot.weight;
                 }
             }
             dataDenom += ballot.weight;
         });
-        for (let row = 0; row < tableData.length; row++) {
-            let rowData = tableData[row];
-            for (let col = 0; col < rowData.length; col++) {
-                let datum = rowData[col];
-                let cellVal = utils.i32(100 * datum / dataDenom);
-                let cellColor = (cellVal < 50) ? "red" : (cellVal > 50) ? "green" : "black";
+        for (var row = 0; row < tableData.length; row++) {
+            var rowData = tableData[row];
+            for (var col = 0; col < rowData.length; col++) {
+                var datum = rowData[col];
+                var cellVal = utils.i32(100 * datum / dataDenom);
+                var cellColor = (cellVal < 50) ? "red" : (cellVal > 50) ? "green" : "black";
                 updateTableCell(tbl, row, col, ("    " + cellVal).slice(-3) + "%", cellColor);
             }
         }
     }
 
     function updateCardinalResultsTable() {
-        let tbl = document.getElementById("myCardinalResults");
+        var tbl = document.getElementById("myCardinalResults");
 
         tbl.style.visibility = "hidden";
         rebuildTable(tbl, candidates.length, 1);
@@ -836,32 +832,32 @@ function updateTables() {
         updateTableCell(tbl, -1, 0, "Average Distance", "black");
 
         // Update the table contents.
-        let tableData = [];
-        let dataDenom = 0;
+        var tableData = [];
+        var dataDenom = 0;
         candidates.forEach(function (candidate) {
-            let rowData = [0];
+            var rowData = [0];
             tableData.push(rowData);
         });
         ballots.forEach(function (ballot) {
             ballot.votes.forEach(function (vote) {
-                let candidate_id = name2index[vote.candidate.name];
+                var candidate_id = name2index[vote.candidate.name];
                 tableData[candidate_id][0] += vote.score * ballot.weight;
             });
             dataDenom += ballot.weight;
         });
-        for (let row = 0; row < tableData.length; row++) {
-            let rowData = tableData[row];
-            for (let col = 0; col < rowData.length; col++) {
-                let datum = rowData[col];
-                let cellVal = (-utils.i32(datum / dataDenom)).toString();
-                let cellColor = "black";
+        for (var row = 0; row < tableData.length; row++) {
+            var rowData = tableData[row];
+            for (var col = 0; col < rowData.length; col++) {
+                var datum = rowData[col];
+                var cellVal = (-utils.i32(datum / dataDenom)).toString();
+                var cellColor = "black";
                 updateTableCell(tbl, row, col, cellVal, cellColor);
             }
         }
     }
 
     function updateElectionResultsTable() {
-        let tbl = document.getElementById("myElectionResults");
+        var tbl = document.getElementById("myElectionResults");
 
         tbl.style.visibility = "hidden";
         rebuildTable(tbl, methods.length, candidates.length);
@@ -880,17 +876,17 @@ function updateTables() {
             updateTableCell(tbl, i, -1, method.name, "black");
         });
         // Update the table contents.
-        let tableData = [];
+        var tableData = [];
         methods.forEach(function (method) {
-            let rowData = method.fn(candidates, ballots, {});
+            var rowData = method.fn(candidates, ballots, {});
             tableData.push(rowData);
         });
-        for (let row = 0; row < tableData.length; row++) {
-            let rowData = tableData[row];
-            for (let col = 0; col < rowData.length; col++) {
-                let datum = rowData[col];
-                let cellVal = datum.name;
-                let cellColor = datum.color;
+        for (var row = 0; row < tableData.length; row++) {
+            var rowData = tableData[row];
+            for (var col = 0; col < rowData.length; col++) {
+                var datum = rowData[col];
+                var cellVal = datum.name;
+                var cellColor = datum.color;
                 updateTableCell(tbl, row, col, cellVal, cellColor);
             }
         }
@@ -898,8 +894,8 @@ function updateTables() {
 }
 
 function updatePermalink() {
-    let uri_cities = [];
-    let uri_method = 0;
+    var uri_cities = [];
+    var uri_method = 0;
     methods.forEach(function(x, i) {
         if (x.name === document.getElementById("mField").value) {
             uri_method = i;
