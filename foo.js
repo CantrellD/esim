@@ -639,8 +639,7 @@ function updateColors() {
         city.color = "gray";
     });
 
-    var tooManyColors = (colors.length > candidates.length) ? true : false;
-    while (colors.length > colors.init_len && tooManyColors) {
+    while (colors.length > colors.init_len && colors.length > candidates.length) {
         colors.pop();
     }
     while (candidates.length > colors.length) {
