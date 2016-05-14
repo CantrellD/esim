@@ -441,7 +441,7 @@ function main() {
     cvs = document.getElementById("myCanvas");
     ctx = cvs.getContext("2d");
     img = new Image();
-    img.src = "tenn.png";
+    img.src = "esim/tenn.png";
     img.onload = function() {
         var ymax = (img.height / img.width) * cvs.width;
         if (ymax > cvs.height) {
