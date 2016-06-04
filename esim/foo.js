@@ -15,6 +15,8 @@ var ctx;
 var img;
 var graphIsVisible = false;
 var allow_caching = true;
+var download_name = "esim";
+var download_flag = false;
 var cities = [];
 var methods = votesys.methods;
 var colors = ["cyan", "yellow", "magenta", "red", "green", "blue"];
@@ -173,12 +175,26 @@ function draw() {
     // TODO: Find a better solution maybe.
     updatePermalink();
 
+    // TODO: Stop being lazy.
+    if (graphIsVisible && download_flag) {
+        cvs2file(download_name + ".png");
+        download_flag = false;
+    }
+
     function drawBotLayer() {
         ctx.clearRect(0, 0, cvs.width, cvs.height);
         ctx.fillStyle = utils.rgb2str(0.075, 0.075, 0.075);
         ctx.fillRect(0, 0, cvs.width, cvs.height);
     }
     function drawMidLayer() {
+        ctx.fillStyle = "white";
+        cities.forEach(function (city) {
+            city.getVoters().forEach(function (voter) {
+                var truex = city.x + voter.x;
+                var truey = city.y + voter.y;
+                ctx.fillRect(truex, truey, 1, 1);
+            });
+        });
         graphIsVisible = false;
         if (draw.graph !== null) {
             ctx.drawImage(draw.graph, 0, 0, xmax, ymax);
@@ -196,25 +212,28 @@ function draw() {
         }
     }
     function drawTopLayer() {
-        ctx.strokeStyle = "black";
         if (graphIsVisible && !(document.getElementById("lineBox").checked)) {
             var variable = cities.filter(function(x) {return x.selected;})[0];
             if (variable.nominated) {
                 cities.forEach(function(ci, i) {
-                    if (ci.selected || ci.nominated) {
-                        return; //continue
+                    if (!(ci.selected) && !(ci.nominated)) {
+                        cities.forEach(function(cj, j) {
+                            if (i === j || cj.selected || !(cj.nominated)) {
+                                return; //continue
+                            }
+                            var dx = cj.x - ci.x;
+                            var dy = cj.y - ci.y;
+                            var r = Math.sqrt(dx * dx + dy * dy);
+                            ctx.strokeStyle = "black";
+                            ctx.beginPath();
+                            ctx.arc(ci.x, ci.y, r, 0, 2 * Math.PI);
+                            ctx.stroke();
+                        });
                     }
-                    cities.forEach(function(cj, j) {
-                        if (i === j || cj.selected || !(cj.nominated)) {
-                            return; //continue
-                        }
-                        var dx = cj.x - ci.x;
-                        var dy = cj.y - ci.y;
-                        var r = Math.sqrt(dx * dx + dy * dy);
-                        ctx.beginPath();
-                        ctx.arc(ci.x, ci.y, r, 0, 2 * Math.PI);
-                        ctx.stroke();
-                    });
+                    ctx.strokeStyle = "white";
+                    ctx.beginPath();
+                    ctx.arc(ci.x, ci.y, ci.getSigma(), 0, 2 * Math.PI);
+                    ctx.stroke();
                 });
             }
             else {
@@ -228,13 +247,15 @@ function draw() {
                         }
                         if (cj.y - ci.y !== 0) {
                             var m = -(cj.x - ci.x) / (cj.y - ci.y);
-                            var b = (ci.y + cj.y) / 2 - m * (ci.x + cj.x) / 2;
+                            var b = (ci.y + cj.y) / 2 - m * (ci.x + cj.x) / 2
+                            ctx.strokeStyle = "black";
                             ctx.beginPath();
                             ctx.moveTo(0, b);
                             ctx.lineTo(cvs.width, m * cvs.width + b);
                             ctx.stroke();
                         }
                         else {
+                            ctx.strokeStyle = "black";
                             ctx.beginPath();
                             ctx.moveTo((ci.x + cj.x) / 2, 0);
                             ctx.lineTo((ci.x + cj.x) / 2, cvs.height);
@@ -245,14 +266,6 @@ function draw() {
             }
         }
         ctx.drawImage(img, 0, 0, xmax, ymax);
-        ctx.fillStyle = "white";
-        cities.forEach(function (city) {
-            city.getVoters().forEach(function (voter) {
-                var truex = city.x + voter.x;
-                var truey = city.y + voter.y;
-                ctx.fillRect(truex, truey, 1, 1);
-            });
-        });
         cities.forEach(function (city) {
             city.draw(ctx);
         });
@@ -400,8 +413,25 @@ function main() {
     var raw_uri_data = utils.uri2data(window.location.href, URI_SUBS);
     var uri_data = utils.uri2data(window.location.href, URI_SUBS);
 
+    if ("download" in raw_uri_data) {
+        uri_data.download = utils.forceBool(raw_uri_data.download);
+        download_flag = uri_data.download;
+    }
+    if ("suffix" in raw_uri_data) {
+        uri_data.suffix = raw_uri_data.suffix.toString().replace(/[^0-9a-zA-Z_]/g, '');
+        download_name += uri_data.suffix;
+    }
+    if ("flags" in raw_uri_data) {
+        uri_data.flags = utils.forceInt(raw_uri_data.flags);
+        document.getElementById("oBox").checked = (uri_data.flags & 0x1) > 0;
+        document.getElementById("cBox").checked = (uri_data.flags & 0x2) > 0;
+        document.getElementById("eBox").checked = (uri_data.flags & 0x4) > 0;
+        document.getElementById("lineBox").checked = (uri_data.flags & 0x8) > 0;
+        document.getElementById("nameBox").checked = (uri_data.flags & 0x10) > 0;
+        document.getElementById("graphBox").checked = (uri_data.flags & 0x20) > 0;
+    }
     if ("draw" in raw_uri_data) {
-        uri_data.draw = utils.forceBool(raw_uri_data.draw); // This is used.
+        uri_data.draw = utils.forceBool(raw_uri_data.draw);
     }
     if ("step" in raw_uri_data) {
         uri_data.step = utils.forceInt(raw_uri_data.step);
@@ -893,13 +923,22 @@ function updateTables() {
 }
 
 function updatePermalink() {
-    var uri_cities = [];
     var uri_method = 0;
     methods.forEach(function(x, i) {
         if (x.name === document.getElementById("mField").value) {
             uri_method = i;
         }
     });
+
+    var uri_flags = 0;
+    uri_flags |= (document.getElementById("oBox").checked) ? 0x1 : 0;
+    uri_flags |= (document.getElementById("cBox").checked) ? 0x2 : 0;
+    uri_flags |= (document.getElementById("eBox").checked) ? 0x4 : 0;
+    uri_flags |= (document.getElementById("lineBox").checked) ? 0x8 : 0;
+    uri_flags |= (document.getElementById("nameBox").checked) ? 0x10 : 0;
+    uri_flags |= (document.getElementById("graphBox").checked) ? 0x20 : 0;
+
+    var uri_cities = [];
     cities.forEach(function(city) {
         uri_cities.push({
             x: city.x,
@@ -910,11 +949,13 @@ function updatePermalink() {
             nom: city.nominated
         });
     });
+
     document.getElementById("permalink").href = utils.data2uri(
         {
             draw: graphIsVisible,
             step: parseInt(document.getElementById("rField").value),
             method: uri_method,
+            flags: uri_flags,
             cities: uri_cities,
             version: "1.0"
         },
@@ -922,3 +963,14 @@ function updatePermalink() {
         "esim.html?"
     );
 }
+
+function cvs2file(filename) {
+    var elt = document.createElement("a");
+    elt.setAttribute("href", cvs.toDataURL());
+    elt.setAttribute("download", filename);
+    elt.style.display = "none";
+    document.body.appendChild(elt);
+    elt.click();
+    document.body.removeChild(elt);
+}
+

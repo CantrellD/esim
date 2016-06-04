@@ -1,6 +1,8 @@
 "use strict";
 
 var utils = (function() {
+	var ITR_END = {value: undefined, done: true};
+
 	var EvtEnum = {
 		MOUSEDOWN: "mousedown",
 		MOUSEUP: "mouseup",
@@ -9,16 +11,20 @@ var utils = (function() {
 		CONTEXTMENU: "contextmenu"
 	};
 
-	var ITR_END = {value: undefined, done: true};
-
-	function i32(x) {
-		return x | 0;
+	function $(arg) {
+		assert(arg.charAt(0) === "#");
+		return [document.getElementById(arg.slice(1))];
 	}
 
 	function assert(invariant) {
 		if (!invariant) {
-			throw "Assertion failed.";
+			var src = (new Error).stack.split("\n")[4].trim();
+			throw "AssertionError (" + src + ")";
 		}
+	}
+
+	function i32(x) {
+		return x | 0;
 	}
 
 	function gauss(mu, sigma, cache) {
@@ -194,7 +200,7 @@ var utils = (function() {
 		return ret;
 	}
 
-	// TODO: FIXME: Each call to 'next' mutates the object previously returned.
+	// TODO: FIXME? Each call to 'next' mutates the object previously returned.
 	function permutations(arr, cache) {
 		var copy = arr.slice(0);
 		return ipermute(copy, 0);
@@ -264,11 +270,11 @@ var utils = (function() {
 	}
 
 	function forceInt(arg) {
-		return parseInt(arg.toString());
+		return parseInt(arg.toString()) || 0;
 	}
 
 	function forceFloat(arg) {
-		return parseFloat(arg.toString());
+		return parseFloat(arg.toString()) || 0.0;
 	}
 
 	function applyTo(thisArg, argsArray, func) {
@@ -297,10 +303,23 @@ var utils = (function() {
 		return (arg === null) ? dflt : arg;
 	}
 
+	function setDefault(obj, key, val) {
+		if (!(key in obj)) {
+			obj[key] = val;
+		}
+		return obj[key];
+	}
+
+	function keyEventSourceId(evt) {
+		var keyCode = evt.keyCode || evt.which;
+		return evt.key || String.fromCharCode(keyCode) || evt.code;
+	}
+
 	return {
 		EvtEnum: EvtEnum,
-		i32: i32,
+		$: $,
 		assert: assert,
+		i32: i32,
 		gauss: gauss,
 		hsl2rgb: hsl2rgb,
 		rgb2str: rgb2str,
@@ -320,6 +339,8 @@ var utils = (function() {
 		applyTo: applyTo,
 		freeze: freeze,
 		isFrozen: isFrozen,
-		orElse: orElse
+		orElse: orElse,
+		setDefault: setDefault,
+		keyEventSourceId: keyEventSourceId
 	};
 })();
