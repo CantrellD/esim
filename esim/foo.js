@@ -13,7 +13,8 @@ var URI_SUBS = [
 var cvs;
 var ctx;
 var img;
-var graphIsVisible = false;
+var draw_cache = {};
+var graph_is_visible = false;
 var allow_caching = true;
 var download_name = "esim";
 var download_flag = false;
@@ -150,20 +151,21 @@ utils.applyTo(null, [City.prototype], function(cls) {
     };
 });
 
-
-// TODO: Find a better solution maybe.
-function withGraphing(callback) {
+function autodraw() {
     var gBox = document.getElementById("graphBox");
-    var tmp = gBox.checked;
-    gBox.checked = true;
-    callback();
-    gBox.checked = tmp;
+    if (gBox.checked) {
+        draw(null, draw_cache);
+        requestGraph(function(g) {
+            draw(g, draw_cache);
+        });
+    }
+    else {
+        draw_cache = {};
+        draw(null, draw_cache);
+    }
 }
 
-function draw() {
-    if (!("graph" in draw)) {
-        draw.graph = null;
-    }
+function draw(graph, cache) {
     var xmax = cvs.width;
     var ymax = cvs.height;
     var gBox = document.getElementById("graphBox");
@@ -175,8 +177,8 @@ function draw() {
     // TODO: Find a better solution maybe.
     updatePermalink();
 
-    // TODO: Stop being lazy.
-    if (graphIsVisible && download_flag) {
+    // TODO: Find a better solution maybe.
+    if (graph_is_visible && download_flag) {
         cvs2file(download_name + ".png");
         download_flag = false;
     }
@@ -195,25 +197,23 @@ function draw() {
                 ctx.fillRect(truex, truey, 1, 1);
             });
         });
-        graphIsVisible = false;
-        if (draw.graph !== null) {
-            ctx.drawImage(draw.graph, 0, 0, xmax, ymax);
-            graphIsVisible = true;
+        graph_is_visible = false;
+        if (graph !== null) {
+            ctx.drawImage(graph, 0, 0, xmax, ymax);
+            cache.graph = graph;
+            graph_is_visible = true;
         }
-        if (gBox.checked) {
-            requestGraph(function(graph) {
-                draw.graph = graph;
-                draw();
-                return;
-            });
-        }
-        else {
-            draw.graph = null;
+        else if (gBox.checked && "graph" in cache && cache.graph !== null) {
+            ctx.drawImage(cache.graph, 0, 0, xmax, ymax);
+            graph_is_visible = true;
         }
     }
     function drawTopLayer() {
-        if (graphIsVisible && !(document.getElementById("lineBox").checked)) {
-            var variable = cities.filter(function(x) {return x.selected;})[0];
+        var variables = cities.filter(function(x) {
+            return x.selected;
+        });
+        if (variables.length > 0 && !(document.getElementById("lineBox").checked)) {
+            var variable = variables[0];
             if (variable.nominated) {
                 cities.forEach(function(ci, i) {
                     if (!(ci.selected) && !(ci.nominated)) {
@@ -277,46 +277,53 @@ function requestGraph(callback) {
     if (!("cache" in fn)) {
         fn.cache = fn;
         fn.busy = false;
+        fn.deferred = null;
         fn.cvs = document.createElement("canvas");
-        fn.ctx = fn.cvs.getContext("2d");
         fn.cvs.width = cvs.width;
         fn.cvs.height = cvs.height;
+        fn.ctx = fn.cvs.getContext("2d");
+        fn.outcvs = document.createElement("canvas");
+        fn.outcvs.width = fn.cvs.width;
+        fn.outcvs.height = fn.cvs.height;
+        fn.outctx = fn.outcvs.getContext("2d");
     }
     if (fn.busy) {
+        fn.deferred = callback;
         return;
     }
-    var ss = document.styleSheets[0];
-    fn.busy = true;
-    ss.insertRule("* {cursor: wait !important}", 0);
     if (cities.filter(function(x) {return x.selected;}).length < 1) {
-        callback(null);
-        ss.deleteRule(0);
-        fn.busy = false;
         return;
     }
     if (cities.filter(function(x) {return x.nominated;}).length < 1) {
-        callback(null);
-        ss.deleteRule(0);
-        fn.busy = false;
         return;
     }
-    setTimeout(function() {
-        var rField = document.getElementById("rField");
-        var mField = document.getElementById("mField");
-        var step = utils.i32(rField.value);
-        var offset = utils.i32(step / 2);
-        var method = methods.filter(function(x) {
-            return x.name === mField.value;
-        })[0];
-        var evilCache = {};
-        var goodCache = {};
-
-        var copies = cities.map(function(x) {return x.copy();});
-        var candidates = copies.filter(function(x) {return x.nominated;});
-        var variable = copies.filter(function(x) {return x.selected;})[0];
-        var gen = utils.cycle(utils.permutations.bind(null, candidates));
-        for (var x = 0; x < fn.cvs.width; x = x + step) {
-            for (var y = 0; y < fn.cvs.height; y = y + step) {
+    var ss = document.styleSheets[0];
+    var rField = document.getElementById("rField");
+    var mField = document.getElementById("mField");
+    var step = utils.i32(rField.value);
+    var offset = utils.i32(step / 2);
+    var method = methods.filter(function(x) {
+        return x.name === mField.value;
+    })[0];
+    var goodCache = {};
+    var evilCache = {};
+    var copies = cities.map(function(x) {return x.copy();});
+    var candidates = copies.filter(function(x) {return x.nominated;});
+    var variable = copies.filter(function(x) {return x.selected;})[0];
+    var gen = utils.cycle(utils.permutations.bind(null, candidates));
+    var x = 0;
+    var y = 0;
+    fn.busy = true;
+    ss.insertRule("* {cursor: wait !important}", 0);
+    setTimeout(process, 0);
+    function process() {
+        var t0 = Date.now();
+        for (x = x; x < fn.cvs.width; x = x + step) {
+            for (y = y; y < fn.cvs.height; y = y + step) {
+                if (Date.now() - t0 > 100) {
+                    setTimeout(process, 0);
+                    return;
+                }
                 var init_x = variable.x;
                 var init_y = variable.y;
                 var ballots;
@@ -330,11 +337,17 @@ function requestGraph(callback) {
                 fn.ctx.fillStyle = winner.color;
                 fn.ctx.fillRect(x - offset, y - offset, step, step);
             }
+            y = 0;
         }
-        callback(fn.cvs);
+        fn.outctx.drawImage(fn.cvs, 0, 0, fn.cvs.width, fn.cvs.height);
+        callback(fn.outcvs);
         ss.deleteRule(0);
         fn.busy = false;
-    }, 32);
+        if (fn.deferred !== null) {
+            requestGraph(fn.deferred);
+            fn.deferred = null;
+        }
+    }
 }
 
 function submitNewProperties() {
@@ -482,10 +495,13 @@ function main() {
         }
         onUpdate();
         if ("draw" in uri_data && uri_data.draw) {
-            withGraphing(draw);
+            draw(null, draw_cache);
+            requestGraph(function(g) {
+                draw(g, draw_cache);
+            });
         }
         else {
-            draw();
+            autodraw();
         }
     };
     cvs.addEventListener(EE.MOUSEDOWN, onEvent.bind(null, EE.MOUSEDOWN), false);
@@ -496,27 +512,30 @@ function main() {
     document.getElementById("oBox").onclick = updateTables;
     document.getElementById("cBox").onclick = updateTables;
     document.getElementById("eBox").onclick = updateTables;
-    document.getElementById("nameBox").onclick = draw;
-    document.getElementById("lineBox").onclick = draw;
-    document.getElementById("graphBox").onclick = draw;
+    document.getElementById("nameBox").onclick = autodraw;
+    document.getElementById("lineBox").onclick = autodraw;
+    document.getElementById("graphBox").onclick = autodraw;
     document.getElementById("uButton").onclick = function() {
         submitNewProperties();
         onUpdate();
-        draw();
+        autodraw();
     };
     document.getElementById("dButton").onclick = function() {
         cities.forEach(function(city) {
             if (city.selected) {
                 city.setPopulation(0);
                 onUpdate();
-                draw();
+                autodraw();
             }
         });
     };
     document.getElementById("gButton").onclick = function() {
         submitNewProperties();
         onUpdate();
-        withGraphing(draw);
+        draw(null, draw_cache);
+        requestGraph(function(g) {
+            draw(g, draw_cache);
+        });
     };
 }
 
@@ -607,7 +626,7 @@ function onEvent(src, evt) {
     if (handled) {
         evt.preventDefault();
         onUpdate();
-        draw();
+        autodraw();
     }
 }
 
@@ -799,10 +818,10 @@ function updateTables() {
         var tbl = document.getElementById("myOrdinalResults");
 
         tbl.style.visibility = "hidden";
-        rebuildTable(tbl, candidates.length, candidates.length);
         if (candidates.length < 1 || document.getElementById("oBox").checked) {
             return;
         }
+        rebuildTable(tbl, candidates.length, candidates.length);
         tbl.style.visibility = "visible";
 
         // Update the table headers.
@@ -848,10 +867,10 @@ function updateTables() {
         var tbl = document.getElementById("myCardinalResults");
 
         tbl.style.visibility = "hidden";
-        rebuildTable(tbl, candidates.length, 1);
         if (candidates.length < 1 || document.getElementById("cBox").checked) {
             return;
         }
+        rebuildTable(tbl, candidates.length, 1);
         tbl.style.visibility = "visible";
 
         // Update the table headers.
@@ -889,10 +908,10 @@ function updateTables() {
         var tbl = document.getElementById("myElectionResults");
 
         tbl.style.visibility = "hidden";
-        rebuildTable(tbl, methods.length, candidates.length);
         if (candidates.length < 1 || document.getElementById("eBox").checked) {
             return;
         }
+        rebuildTable(tbl, methods.length, candidates.length);
         tbl.style.visibility = "visible";
 
         // Update the table headers.
@@ -952,7 +971,7 @@ function updatePermalink() {
 
     document.getElementById("permalink").href = utils.data2uri(
         {
-            draw: graphIsVisible,
+            draw: graph_is_visible,
             step: parseInt(document.getElementById("rField").value),
             method: uri_method,
             flags: uri_flags,
