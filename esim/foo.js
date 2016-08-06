@@ -38,6 +38,7 @@ function City(x, y) {
     this.x = x;
     this.y = y;
     this._voters = utils.orElse(utils.freeze([]), []);
+    this._history = utils.orElse(utils.freeze([]), []);
     this._sigma = 0;
     this.radius = 8;
     this.moving = false;
@@ -49,15 +50,6 @@ function City(x, y) {
 utils.applyTo(null, [City.prototype], function(cls) {
     cls.getVoters = function() {
         return this._voters;
-    };
-    cls.setVoters = function(voters) {
-        if (utils.orElse(utils.isFrozen(voters), false)) {
-            this._voters = voters;
-        }
-        else {
-            voters = voters.slice(0);
-            this._voters = utils.orElse(utils.freeze(voters), voters);
-        }
     };
     cls.checkBounds = function(x, y) {
         var dx = x - this.x;
@@ -106,14 +98,17 @@ utils.applyTo(null, [City.prototype], function(cls) {
         this.setPopulation(pop);
     };
     cls.getPopulation = function() {
-        return this.getVoters().length;
+        return this._history.length;
     };
     cls.setPopulation = function(arg) {
         if (arg === this.getPopulation()) {
             return;
         }
-        var voters = this.getVoters().map(function(voter) {
+        var voters = this._voters.map(function(voter) {
             return {x: voter.x, y: voter.y, weight: voter.weight};
+        });
+        var history = this._history.map(function(x) {
+            return x;
         });
         var xy2index = {};
         voters.forEach(function (voter, i) {
@@ -123,28 +118,32 @@ utils.applyTo(null, [City.prototype], function(cls) {
             }
             xy2index[xy] = i;
         });
-        while (voters.length > arg) {
-            var voter = voters.pop();
+        while (history.length > arg) {
+            var voter = voters[history.pop()];
+            voter.weight -= 1;
             if (voter.weight < 1) {
-                var xy = args2xy(voter.x, voter.y);
-                voters[xy2index[xy]].weight -= 1;
+                utils.assert(voters[voters.length - 1].weight < 1);
+                voters.pop();
             }
         }
         var gaussCache = {};
-        while (voters.length < arg) {
+        while (history.length < arg) {
             var xval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
             var yval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
             var xy = args2xy(xval, yval);
             if (xy in xy2index) {
                 voters[xy2index[xy]].weight += 1;
-                voters.push({x: xval, y: yval, weight: 0});
+                history.push(xy2index[xy]);
             }
             else {
                 xy2index[xy] = voters.length;
                 voters.push({x: xval, y: yval, weight: 1});
+                history.push(xy2index[xy]);
             }
         }
-        this.setVoters(utils.orElse(utils.freeze(voters), voters));
+        this._voters = utils.orElse(utils.freeze(voters), voters);
+        this._history = utils.orElse(utils.freeze(history), history);
+        utils.assert(this.getPopulation() == arg);
         function args2xy(x, y) {
             return "x" + x.toString() + "y" + y.toString();
         }
