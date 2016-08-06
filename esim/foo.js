@@ -369,7 +369,9 @@ function submitNewProperties() {
     });
 }
 
-
+function compareScores(a, b) {
+    return b.score - a.score;
+}
 function poll(cities, candidates, cache) {
     var ballots = [];
     var cacheBallots = ("ballots" in cache) ? cache.ballots : null;
@@ -407,10 +409,7 @@ function poll(cities, candidates, cache) {
                     vote.score = -Math.sqrt(dx * dx + dy * dy);
                 }
             }
-            utils.insertionSort(
-                votes,
-                function(a, b) {return b.score - a.score;}
-            );
+            utils.insertionSort(votes, compareScores);
             ballots.push(ballot);
         }
     }
