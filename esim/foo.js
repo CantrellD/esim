@@ -432,6 +432,10 @@ function main() {
         uri_data.suffix = raw_uri_data.suffix.toString().replace(/[^0-9a-zA-Z_]/g, '');
         download_name += uri_data.suffix;
     }
+    if ("seed" in raw_uri_data) {
+        uri_data.seed = utils.forceInt(raw_uri_data.seed);
+        utils.seed(uri_data.seed);
+    }
     if ("flags" in raw_uri_data) {
         uri_data.flags = utils.forceInt(raw_uri_data.flags);
         document.getElementById("oBox").checked = (uri_data.flags & 0x1) > 0;
