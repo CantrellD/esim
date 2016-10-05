@@ -1,6 +1,16 @@
 var AudioContext = window.AudioContext || window.webkitAudioContext;
 var ctx = new AudioContext();
-var fmap = {};
+var fmap = {
+    "a": 440.00,
+    "s": 493.88,
+    "d": 523.25,
+    "f": 587.33,
+    "g": 659.25,
+    "h": 698.46,
+    "j": 783.99,
+    "k": 880.00,
+    "l": 987.77,
+};
 var generators = {};
 
 function createToneGenerator(frequency, volume) {
@@ -19,6 +29,8 @@ function createToneGenerator(frequency, volume) {
 function main() {
 	bButton = utils.$("#bButton")[0];
 	fField = utils.$("#fField")[0];
+
+    fField.defaultValue = JSON.stringify(fmap);
 
 	document.onkeydown = function(evt) {
 		keyid = utils.keyEventSourceId(evt);
@@ -39,14 +51,6 @@ function main() {
 		}
 	};
 	bButton.onclick = function(evt) {
-		onkeydown = document.onkeydown;
-		onkeyup = document.onkeyup;
-		document.onkeydown = function(evt) {};
-		document.onkeyup = function(evt) {
-			keyid = utils.keyEventSourceId(evt);
-			fmap[keyid] = parseInt(fField.value);
-			document.onkeydown = onkeydown;
-			document.onkeyup = onkeyup;
-		};
+		fmap = JSON.parse(fField.value);
 	};
 }
