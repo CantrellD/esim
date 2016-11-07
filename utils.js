@@ -336,15 +336,17 @@ var utils = (function() {
 	}
 
 	function uri2data(uri, subs) {
-		var uri_suffix = uri.match(/^[^\?]*\?(.*)$/);
+		var uri_suffix = uri.match(/^[^?]*[?](.*)$/);
 		var ret = {};
 		if (uri_suffix !== null) {
 			uri_suffix[1].split("&").forEach(function(x) {
-				var tmp = x.match(/^([^=]+)=(.*)$/);
+				var tmp = x.match(/^([a-z_]+)[=](.*)$/);
 				if (tmp !== null) {
 					var key = uriDecode(tmp[1], subs);
 					var val = JSON.parse(uriDecode(tmp[2], subs));
-					ret[key] = val;
+					if (!(key in ret)) {
+						ret[key] = val;
+					}
 				}
 			});
 		}
