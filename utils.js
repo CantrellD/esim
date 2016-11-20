@@ -8,7 +8,7 @@ var utils = (function() {
 	var statics = {
 		seed: null,
 		prng: null,
-		hideDeprecationMessages = false
+		hideDeprecationMessages: false
 	};
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -541,8 +541,11 @@ var utils = (function() {
 		ui32: ui32,
 		unlessNaN: unlessNaN,
 		uri2data: uri2data,
+		uriDecode: uriDecode,
+		uriEncode: uriEncode,
 	};
-	assert(countKeys(helpers) === helperc);
-	assert(countKeys(ret) === counter);
+	if (countKeys(helpers) !== helperc || countKeys(ret) !== counter) {
+		console.log("WARNING: The utils module has an invalid state.");
+	}
 	return ret;
 })();
