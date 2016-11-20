@@ -28,12 +28,135 @@ var utils = (function() {
 		}
 	}
 
-	function i32(arg) {
-		return arg | 0;
+	function applyTo(thisArg, argsArray, func) {
+		func.apply(thisArg, argsArray);
 	}
 
-	function ui32(arg) {
-		return arg >>> 0;
+	function reEscape(str){
+		return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	}
+
+	function strSwap(str, a, b) {
+		var re = new RegExp(reEscape(b), "g");
+		var tmp = [];
+		str.split(a).forEach(function(x) {
+			tmp.push(x.replace(re, a));
+		});
+		return tmp.join(b);
+	}
+
+	function freeze(arg) {
+		try {
+			return Object.freeze(arg);
+		}
+		catch (err) {
+			return null;
+		}
+	}
+
+	function isFrozen(arg) {
+		try {
+			return Object.isFrozen(arg);
+		}
+		catch (err) {
+			return null;
+		}
+	}
+
+	function orElse(arg, dflt) {
+		return (arg === null) ? dflt : arg;
+	}
+
+	function setDefault(obj, key, val) {
+		if (!(key in obj)) {
+			obj[key] = val;
+		}
+		return obj[key];
+	}
+
+	function keyEventSourceId(evt) {
+		var keyCode = evt.keyCode || evt.which;
+		return evt.key || String.fromCharCode(keyCode) || evt.code;
+	}
+
+	function hsl2rgb(a,b,c) {
+		a *= 6;
+		b = [c+=b*=c<.5?c:1-c, c-a%1*b*2, c-=b*=2, c, c+a%1*b, c+b];
+		return [b[~~a%6], b[(a|16)%6], b[(a|8)%6]];
+	}
+
+	function rgb2str(r, g, b) {
+		r = (255 * r) | 0;
+		g = (255 * g) | 0;
+		b = (255 * b) | 0;
+		return "rgb(" + r + ", " + g + ", " + b + ")";
+	}
+
+	function cycle(generator) {
+		var ret = {};
+		var itr = generator();
+		ret.next = function() {
+			var nxt = itr.next();
+			if (nxt.done) {
+				itr = generator();
+				nxt = itr.next();
+			}
+			return nxt;
+		};
+		return ret;
+	}
+
+	function ipermute(arr, depth) {
+		var ret = {};
+		var fin = false;
+		var i = 1;
+		var child;
+		var src = null;
+		if (depth < arr.length - 1) {
+			child = ipermute(arr, depth + 1);
+			ret.next = function() {
+				var nxt = child.next();
+				if (nxt.done) {
+					if (src !== null) {
+						var tmp = arr[src];
+						arr[src] = arr[depth];
+						arr[depth] = tmp;
+					}
+					if (depth + i < arr.length) {
+						src = depth + i;
+						var tmp = arr[depth];
+						arr[depth] = arr[src];
+						arr[src] = tmp;
+						child = ipermute(arr, depth + 1);
+						nxt = child.next();
+						i += 1;
+					}
+					else {
+						src = null;
+						nxt = ITR_END;
+					}
+				}
+				return nxt;
+			};
+		}
+		else {
+			ret.next = function() {
+				if (fin) {
+					return ITR_END;
+				}
+				else {
+					fin = true;
+					return {value: arr, done: false};
+				}
+			};
+		}
+		return ret;
+	}
+
+	// TODO: FIXME? Each call to 'next' mutates the object previously returned.
+	function permutations(arr, cache) {
+		var copy = arr.slice(0);
+		return ipermute(copy, 0);
 	}
 
 	function seed(arg) {
@@ -145,17 +268,14 @@ var utils = (function() {
 		return u1 * tmp * sigma + mu;
 	}
 
-	function hsl2rgb(a,b,c) {
-		a *= 6;
-		b = [c+=b*=c<.5?c:1-c, c-a%1*b*2, c-=b*=2, c, c+a%1*b, c+b];
-		return [b[~~a%6], b[(a|16)%6], b[(a|8)%6]];
-	}
-
-	function rgb2str(r, g, b) {
-		r = (255 * r) | 0;
-		g = (255 * g) | 0;
-		b = (255 * b) | 0;
-		return "rgb(" + r + ", " + g + ", " + b + ")";
+	function shuffle(arr) {
+		var n, tmp;
+		for (var i = arr.length - 1; i > 0; i--) {
+			n = Math.floor(random(statics.prng) * (i + 1));
+			tmp = arr[i];
+			arr[i] = arr[n];
+			arr[n] = tmp;
+		}
 	}
 
 	function insertionSort(arr, cmp) {
@@ -217,14 +337,12 @@ var utils = (function() {
 		return arr;
 	}
 
-	function shuffle(arr) {
-		var n, tmp;
-		for (var i = arr.length - 1; i > 0; i--) {
-			n = Math.floor(random(statics.prng) * (i + 1));
-			tmp = arr[i];
-			arr[i] = arr[n];
-			arr[n] = tmp;
-		}
+	function i32(arg) {
+		return arg | 0;
+	}
+
+	function ui32(arg) {
+		return arg >>> 0;
 	}
 
 	function asyncFor(start, stop, step, callback) {
@@ -237,84 +355,16 @@ var utils = (function() {
 		}
 	}
 
-	function cycle(generator) {
-		var ret = {};
-		var itr = generator();
-		ret.next = function() {
-			var nxt = itr.next();
-			if (nxt.done) {
-				itr = generator();
-				nxt = itr.next();
-			}
-			return nxt;
-		};
-		return ret;
+	function forceBool(arg) {
+		return (arg.toString() === "true");
 	}
 
-	function ipermute(arr, depth) {
-		var ret = {};
-		var fin = false;
-		var i = 1;
-		var child;
-		var src = null;
-		if (depth < arr.length - 1) {
-			child = ipermute(arr, depth + 1);
-			ret.next = function() {
-				var nxt = child.next();
-				if (nxt.done) {
-					if (src !== null) {
-						var tmp = arr[src];
-						arr[src] = arr[depth];
-						arr[depth] = tmp;
-					}
-					if (depth + i < arr.length) {
-						src = depth + i;
-						var tmp = arr[depth];
-						arr[depth] = arr[src];
-						arr[src] = tmp;
-						child = ipermute(arr, depth + 1);
-						nxt = child.next();
-						i += 1;
-					}
-					else {
-						src = null;
-						nxt = ITR_END;
-					}
-				}
-				return nxt;
-			};
-		}
-		else {
-			ret.next = function() {
-				if (fin) {
-					return ITR_END;
-				}
-				else {
-					fin = true;
-					return {value: arr, done: false};
-				}
-			};
-		}
-		return ret;
+	function forceInt(arg) {
+		return parseInt(arg.toString()) || 0;
 	}
 
-	// TODO: FIXME? Each call to 'next' mutates the object previously returned.
-	function permutations(arr, cache) {
-		var copy = arr.slice(0);
-		return ipermute(copy, 0);
-	}
-
-	function reEscape(str){
-		return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	}
-
-	function strSwap(str, a, b) {
-		var re = new RegExp(reEscape(b), "g");
-		var tmp = [];
-		str.split(a).forEach(function(x) {
-			tmp.push(x.replace(re, a));
-		});
-		return tmp.join(b);
+	function forceFloat(arg) {
+		return parseFloat(arg.toString()) || 0.0;
 	}
 
 	function uriEncode(str, subs) {
@@ -363,56 +413,6 @@ var utils = (function() {
 			}
 		}
 		return uri_prefix + tmp.join("&");
-	}
-
-	function forceBool(arg) {
-		return (arg.toString() === "true");
-	}
-
-	function forceInt(arg) {
-		return parseInt(arg.toString()) || 0;
-	}
-
-	function forceFloat(arg) {
-		return parseFloat(arg.toString()) || 0.0;
-	}
-
-	function applyTo(thisArg, argsArray, func) {
-		func.apply(thisArg, argsArray);
-	}
-
-	function freeze(arg) {
-		try {
-			return Object.freeze(arg);
-		}
-		catch (err) {
-			return null;
-		}
-	}
-
-	function isFrozen(arg) {
-		try {
-			return Object.isFrozen(arg);
-		}
-		catch (err) {
-			return null;
-		}
-	}
-
-	function orElse(arg, dflt) {
-		return (arg === null) ? dflt : arg;
-	}
-
-	function setDefault(obj, key, val) {
-		if (!(key in obj)) {
-			obj[key] = val;
-		}
-		return obj[key];
-	}
-
-	function keyEventSourceId(evt) {
-		var keyCode = evt.keyCode || evt.which;
-		return evt.key || String.fromCharCode(keyCode) || evt.code;
 	}
 
 	return {
