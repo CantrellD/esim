@@ -9,6 +9,13 @@ var URI_SUBS = [
     ["[", "LST"],
     ["]", "TSL"]
 ];
+var EvtEnum = {
+    MOUSEDOWN: "mousedown",
+    MOUSEUP: "mouseup",
+    MOUSEMOVE: "mousemove",
+    WHEEL: "wheel",
+    CONTEXTMENU: "contextmenu"
+};
 
 var cvs;
 var ctx;
@@ -47,7 +54,7 @@ function City(x, y) {
     this.name = "N/A";
     this.color = "gray";
 }
-utils.applyTo(null, [City.prototype], function(cls) {
+utils.invoke(null, [City.prototype], function(cls) {
     cls.getVoters = function() {
         return this._voters;
     };
@@ -420,7 +427,7 @@ function poll(cities, candidates, cache) {
 }
 
 function main() {
-    var EE = utils.EvtEnum;
+    var EE = EvtEnum;
     var raw_uri_data = utils.uri2data(window.location.href, URI_SUBS);
     var uri_data = utils.uri2data(window.location.href, URI_SUBS);
 
@@ -543,7 +550,7 @@ function main() {
 
 function onEvent(src, evt) {
     var fn = onEvent;
-    var EE = utils.EvtEnum;
+    var EE = EvtEnum;
     var box = cvs.getBoundingClientRect();
     var x = (evt.clientX - box.left) * cvs.width / (box.right - box.left);
     var y = (evt.clientY - box.top) * cvs.height / (box.bottom - box.top);

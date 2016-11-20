@@ -2,24 +2,33 @@
 
 var utils = (function() {
 	var ITR_END = {value: undefined, done: true};
-
-	var EvtEnum = {
-		MOUSEDOWN: "mousedown",
-		MOUSEUP: "mouseup",
-		MOUSEMOVE: "mousemove",
-		WHEEL: "wheel",
-		CONTEXTMENU: "contextmenu"
-	};
-
+	var helpers = {};
+	var helperc = 0;
+	var counter = 0;
 	var statics = {
 		seed: null,
-		prng: null
+		prng: null,
+		hideDeprecationMessages = false
 	};
+
+///////////////////////////////////////////////////////////////////////////////
+// cantrips
+///////////////////////////////////////////////////////////////////////////////
+	helpers.deprecate = function() {
+		var src = (new Error).stack.split("\n")[4].trim();
+		if (statics.hideDeprecationMessages) {
+			return;
+		}
+		statics.hideDeprecationMessages = true;
+		console.log("DeprecationWarning(" + src + ")");
+	}
+	helperc += 1;
 
 	function $(arg) {
 		assert(arg.charAt(0) === "#");
 		return [document.getElementById(arg.slice(1))];
 	}
+	counter += 1;
 
 	function assert(invariant) {
 		if (!invariant) {
@@ -27,14 +36,52 @@ var utils = (function() {
 			throw "AssertionError (" + src + ")";
 		}
 	}
+	counter += 1;
 
-	function applyTo(thisArg, argsArray, func) {
+	function ifNaN(arg, fn) {
+		if (arg !== arg) {
+			fn();
+		}
+	}
+	counter += 1;
+
+	function unlessNaN(arg, fn) {
+		if (arg === arg) {
+			fn();
+		}
+	}
+	counter += 1;
+
+	function invoke(thisArg, argsArray, func) {
 		func.apply(thisArg, argsArray);
 	}
+	counter += 1;
+
+	function contains(arr, elt) {
+		for (var i = 0; i < arr.length; i++) {
+			if ((isNaN(arr[i]) && isNaN(elt)) || (arr[i] === elt)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	counter += 1;
+
+	function countKeys(obj) {
+		var ret = 0;
+		for (var key in obj) {
+			if (obj.hasOwnProperty(key)) {
+				ret += 1;
+			}
+		}
+		return ret;
+	}
+	counter += 1;
 
 	function reEscape(str){
 		return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	}
+	counter += 1;
 
 	function strSwap(str, a, b) {
 		var re = new RegExp(reEscape(b), "g");
@@ -44,6 +91,7 @@ var utils = (function() {
 		});
 		return tmp.join(b);
 	}
+	counter += 1;
 
 	function freeze(arg) {
 		try {
@@ -53,6 +101,7 @@ var utils = (function() {
 			return null;
 		}
 	}
+	counter += 1;
 
 	function isFrozen(arg) {
 		try {
@@ -62,10 +111,12 @@ var utils = (function() {
 			return null;
 		}
 	}
+	counter += 1;
 
 	function orElse(arg, dflt) {
 		return (arg === null) ? dflt : arg;
 	}
+	counter += 1;
 
 	function setDefault(obj, key, val) {
 		if (!(key in obj)) {
@@ -73,17 +124,24 @@ var utils = (function() {
 		}
 		return obj[key];
 	}
+	counter += 1;
 
 	function keyEventSourceId(evt) {
 		var keyCode = evt.keyCode || evt.which;
 		return evt.key || String.fromCharCode(keyCode) || evt.code;
 	}
+	counter += 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// colors
+///////////////////////////////////////////////////////////////////////////////
 
 	function hsl2rgb(a,b,c) {
 		a *= 6;
 		b = [c+=b*=c<.5?c:1-c, c-a%1*b*2, c-=b*=2, c, c+a%1*b, c+b];
 		return [b[~~a%6], b[(a|16)%6], b[(a|8)%6]];
 	}
+	counter += 1;
 
 	function rgb2str(r, g, b) {
 		r = (255 * r) | 0;
@@ -91,6 +149,11 @@ var utils = (function() {
 		b = (255 * b) | 0;
 		return "rgb(" + r + ", " + g + ", " + b + ")";
 	}
+	counter += 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// iterators
+///////////////////////////////////////////////////////////////////////////////
 
 	function cycle(generator) {
 		var ret = {};
@@ -105,15 +168,16 @@ var utils = (function() {
 		};
 		return ret;
 	}
+	counter += 1;
 
-	function ipermute(arr, depth) {
+	helpers.ipermute = function(arr, depth) {
 		var ret = {};
 		var fin = false;
 		var i = 1;
 		var child;
 		var src = null;
 		if (depth < arr.length - 1) {
-			child = ipermute(arr, depth + 1);
+			child = helpers.ipermute(arr, depth + 1);
 			ret.next = function() {
 				var nxt = child.next();
 				if (nxt.done) {
@@ -127,7 +191,7 @@ var utils = (function() {
 						var tmp = arr[depth];
 						arr[depth] = arr[src];
 						arr[src] = tmp;
-						child = ipermute(arr, depth + 1);
+						child = helpers.ipermute(arr, depth + 1);
 						nxt = child.next();
 						i += 1;
 					}
@@ -152,27 +216,40 @@ var utils = (function() {
 		}
 		return ret;
 	}
+	helperc += 1;
 
 	// TODO: FIXME? Each call to 'next' mutates the object previously returned.
 	function permutations(arr, cache) {
 		var copy = arr.slice(0);
-		return ipermute(copy, 0);
+		return helpers.ipermute(copy, 0);
 	}
+	counter += 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// prng
+///////////////////////////////////////////////////////////////////////////////
 
 	function seed(arg) {
 		statics.seed = arg;
 		statics.prng = {};
 	}
+	counter += 1;
 
 	function random(cache) {
 		if (statics.seed === null) {
 			return Math.random();
 		}
+		cache = orElse(cache, statics.prng);
 		return ui32(randInt32(cache)) * (1.0 / 4294967296.0);
 	}
+	counter += 1;
 
 	// Mersenne Twister 19937
 	function randInt32(cache) {
+		if (statics.seed === null) {
+			return i32(Math.random() * 2147483648);
+		}
+		cache = orElse(cache, statics.prng);
 		if (!("seed" in cache)) {
 			cache.seed = ui32(statics.seed);
 			cache.fval = 1812433253;
@@ -247,6 +324,7 @@ var utils = (function() {
 			return ret;
 		}
 	}
+	counter += 1;
 
 	function gauss(mu, sigma, cache) {
 		var u1;
@@ -258,8 +336,8 @@ var utils = (function() {
 			return tmp * sigma + mu;
 		}
 		do {
-			u1 = 2.0 * random(statics.prng) - 1.0;
-			u2 = 2.0 * random(statics.prng) - 1.0;
+			u1 = 2.0 * random(null) - 1.0;
+			u2 = 2.0 * random(null) - 1.0;
 			tmp = u1 * u1 + u2 * u2;
 		} while (tmp === 0 || tmp > 1.0);
 
@@ -267,16 +345,22 @@ var utils = (function() {
 		cache.value = u2 * tmp;
 		return u1 * tmp * sigma + mu;
 	}
+	counter += 1;
 
 	function shuffle(arr) {
 		var n, tmp;
 		for (var i = arr.length - 1; i > 0; i--) {
-			n = Math.floor(random(statics.prng) * (i + 1));
+			n = Math.floor(random(null) * (i + 1));
 			tmp = arr[i];
 			arr[i] = arr[n];
 			arr[n] = tmp;
 		}
 	}
+	counter += 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// sorting
+///////////////////////////////////////////////////////////////////////////////
 
 	function insertionSort(arr, cmp) {
 		for (var i = 1; i < arr.length; i++) {
@@ -290,8 +374,9 @@ var utils = (function() {
 		}
 		return arr;
 	}
+	counter += 1;
 
-	function merge(src, dst, a, b, c, cmp) {
+	helpers.merge = function(src, dst, a, b, c, cmp) {
 		var i = a;
 		var j = b;
 		var k = a;
@@ -318,6 +403,7 @@ var utils = (function() {
 			}
 		}
 	}
+	helperc += 1;
 
 	function mergeSort(arr, cmp) {
 		var copy = arr.slice(0);
@@ -331,42 +417,45 @@ var utils = (function() {
 			if (c - b > 1) {
 				impl(y, x, b, (b + c) >> 1, c);
 			}
-			merge(x, y, a, b, c, cmp);
+			helpers.merge(x, y, a, b, c, cmp);
 		}
 		impl(copy, arr, 0, arr.length >> 1, arr.length);
 		return arr;
 	}
+	counter += 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// types
+///////////////////////////////////////////////////////////////////////////////
 
 	function i32(arg) {
 		return arg | 0;
 	}
+	counter += 1;
 
 	function ui32(arg) {
 		return arg >>> 0;
 	}
-
-	function asyncFor(start, stop, step, callback) {
-		if (start < stop) {
-			callback(start);
-			setTimeout(
-				function() {asyncFor(start + step, stop, step, callback);},
-				0
-			);
-		}
-	}
+	counter += 1;
 
 	function forceBool(arg) {
 		return (arg.toString() === "true");
 	}
+	counter += 1;
 
 	function forceInt(arg) {
 		return parseInt(arg.toString()) || 0;
 	}
+	counter += 1;
 
 	function forceFloat(arg) {
 		return parseFloat(arg.toString()) || 0.0;
 	}
+	counter += 1;
 
+///////////////////////////////////////////////////////////////////////////////
+// uri
+///////////////////////////////////////////////////////////////////////////////
 	function uriEncode(str, subs) {
 		var tmp = str;
 		for (var i = subs.length - 1; i >= 0; i--) {
@@ -375,6 +464,7 @@ var utils = (function() {
 		}
 		return encodeURIComponent(tmp);
 	}
+	counter += 1;
 
 	function uriDecode(str, subs) {
 		var tmp = decodeURIComponent(str);
@@ -384,6 +474,7 @@ var utils = (function() {
 		}
 		return tmp;
 	}
+	counter += 1;
 
 	function uri2data(uri, subs) {
 		var uri_suffix = uri.match(/^[^?]*[?](.*)$/);
@@ -402,6 +493,7 @@ var utils = (function() {
 		}
 		return ret;
 	}
+	counter += 1;
 
 	function data2uri(data, subs, uri_prefix) {
 		var tmp = [];
@@ -414,37 +506,43 @@ var utils = (function() {
 		}
 		return uri_prefix + tmp.join("&");
 	}
+	counter += 1;
 
-	return {
-		EvtEnum: EvtEnum,
+	var ret = {
 		$: $,
 		assert: assert,
-		i32: i32,
-		ui32: ui32,
-		seed: seed,
-		random: random,
-		randInt32: randInt32,
-		gauss: gauss,
-		hsl2rgb: hsl2rgb,
-		rgb2str: rgb2str,
-		insertionSort: insertionSort,
-		mergeSort: mergeSort,
-		shuffle: shuffle,
-		permutations: permutations,
+		contains: contains,
+		countKeys: countKeys,
 		cycle: cycle,
-		asyncFor: asyncFor,
-		reEscape: reEscape,
-		strSwap: strSwap,
-		uri2data: uri2data,
 		data2uri: data2uri,
 		forceBool: forceBool,
-		forceInt: forceInt,
 		forceFloat: forceFloat,
-		applyTo: applyTo,
+		forceInt: forceInt,
 		freeze: freeze,
+		gauss: gauss,
+		hsl2rgb: hsl2rgb,
+		i32: i32,
+		ifNaN: ifNaN,
+		insertionSort: insertionSort,
+		invoke: invoke,
 		isFrozen: isFrozen,
+		keyEventSourceId: keyEventSourceId,
+		mergeSort: mergeSort,
 		orElse: orElse,
+		permutations: permutations,
+		randInt32: randInt32,
+		random: random,
+		reEscape: reEscape,
+		rgb2str: rgb2str,
+		seed: seed,
 		setDefault: setDefault,
-		keyEventSourceId: keyEventSourceId
+		shuffle: shuffle,
+		strSwap: strSwap,
+		ui32: ui32,
+		unlessNaN: unlessNaN,
+		uri2data: uri2data,
 	};
+	assert(countKeys(helpers) === helperc);
+	assert(countKeys(ret) === counter);
+	return ret;
 })();
