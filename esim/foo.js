@@ -985,7 +985,7 @@ function updatePermalink() {
             method: uri_method,
             flags: uri_flags,
             cities: uri_cities,
-            version: "3"
+            version: "4"
         },
         URI_SUBS,
         "esim.html?"
