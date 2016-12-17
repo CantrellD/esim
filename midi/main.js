@@ -141,7 +141,8 @@ function tick(cache) {
         cache.frameCounter = 0;
     }
     if (cache.targetCounter > 1 / global.targetsPerSecond) {
-        var offset = utils.i32(utils.random(null) * global.key.length);
+        var idx = utils.i32(utils.random(null) * global.pool.length);
+        var offset = global.pool[idx];
         var newTarget = {
             offset: offset,
             x: 1,
@@ -229,6 +230,7 @@ function draw() {
 
 function main(argv) {
     global.key = CC_MAJOR;
+    global.pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     global.framesPerSecond = 60;
     global.ticksPerSecond = 60;
     global.targetsPerSecond = 1;
