@@ -30,6 +30,33 @@ var utils = (function() {
 	}
 	counter += 1;
 
+	function all(conditions) {
+		for (var i = 0; i < conditions.length; i++) {
+			var condition = conditions[i];
+			if (!condition) {
+				return false;
+			}
+		}
+		return true;
+	}
+	counter += 1;
+
+	function any(conditions) {
+		for (var i = 0; i < conditions.length; i++) {
+			var condition = conditions[i];
+			if (condition) {
+				return true;
+			}
+		}
+		return false;
+	}
+	counter += 1;
+
+	function mod(lhs, rhs) {
+		return ((lhs % rhs) + rhs) % rhs;
+	}
+	counter += 1;
+
 	function assert(invariant) {
 		if (!invariant) {
 			var src = (new Error).stack.split("\n")[4].trim();
@@ -510,6 +537,9 @@ var utils = (function() {
 
 	var ret = {
 		$: $,
+		all: all,
+		any: any,
+		mod: mod,
 		assert: assert,
 		contains: contains,
 		countKeys: countKeys,
