@@ -40,9 +40,7 @@ function onMIDIAccept(midi) {
     global.midiAccess.onstatechange = midiInputSetup;
     midiInputSetup();
     tick.cache = {};
-    setInterval(function() {
-        tick(tick.cache);
-    }, 1000 / global.ticksPerSecond);
+    tick(tick.cache);
 }
 function onMIDIReject(err) {
     alert("MIDI system failed to start.");
@@ -153,6 +151,9 @@ function tick(cache) {
     }
     cache.frameCounter += dt;
     cache.targetCounter += dt;
+    setTimeout(function() {
+        tick(cache);
+    }, 1000 / global.ticksPerSecond);
 }
 
 function draw() {
