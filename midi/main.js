@@ -190,14 +190,14 @@ function draw() {
     var score = global.score;
     ctx.fillStyle = "black";
     ctx.strokeStyle = "white";
-    ctx.strokeText("Score: " + score, 0.025 * xmax, 0.025 * ymax);
-    ctx.fillText("Score: " + score, 0.025 * xmax, 0.025 * ymax);
+    ctx.strokeText("Points: " + score, 0.025 * xmax, 0.025 * ymax);
+    ctx.fillText("Points: " + score, 0.025 * xmax, 0.025 * ymax);
 
     var best = global.best;
     ctx.fillStyle = "black";
     ctx.strokeStyle = "white";
-    ctx.strokeText("Best:  " + best, 0.025 * xmax, 0.05 * ymax);
-    ctx.fillText("Best:  " + best, 0.025 * xmax, 0.05 * ymax);
+    ctx.strokeText("Record: " + best, 0.025 * xmax, 0.05 * ymax);
+    ctx.fillText("Record: " + best, 0.025 * xmax, 0.05 * ymax);
 
     function drawTarget(target) {
         ctx.fillStyle = global.targetColor;
