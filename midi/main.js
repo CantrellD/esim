@@ -91,10 +91,14 @@ function noteOn(note) {
     if (global.targets.length > 0 && MIDI_MAP[note % 12] === global.key[global.targets[0].note]) {
         global.targets.splice(0, 1);
         global.targetColor = "black";
-        global.history.push(1);
+        global.score += 1;
+        if (global.score > global.best) {
+            global.best = global.score;
+        }
     }
     else {
         global.targetColor = "gray";
+        global.score = 0;
     }
 }
 function noteOff(note) {
@@ -109,16 +113,6 @@ function noteOff(note) {
 ////////////////////////////////////////////////////////////////
 // game
 ////////////////////////////////////////////////////////////////
-
-function checkScore() {
-    if (global.history.length < 1) {
-        return 0;
-    }
-    var sum = global.history.reduce(function(a, b) {
-        return a + b;
-    }, 0);
-    return utils.i32(100 * sum / global.history.length);
-}
 
 function tick(cache) {
     if (!("tick" in cache)) {
@@ -135,10 +129,7 @@ function tick(cache) {
     if (global.targets.length > 0 && global.targets[0].x < 0.1) {
         global.targets.splice(0, 1);
         global.targetColor = "red";
-        global.history.push(0);
-    }
-    if (global.history.length > 100) {
-        global.history.splice(0, 1);
+        global.score = 0;
     }
     if (cache.frameCounter > 1 / global.framesPerSecond) {
         draw();
@@ -196,11 +187,17 @@ function draw() {
         drawTarget(target);
     }
 
-    var score = checkScore();
+    var score = global.score;
     ctx.fillStyle = "black";
     ctx.strokeStyle = "white";
     ctx.strokeText("Score: " + score, 0.025 * xmax, 0.025 * ymax);
     ctx.fillText("Score: " + score, 0.025 * xmax, 0.025 * ymax);
+
+    var best = global.best;
+    ctx.fillStyle = "black";
+    ctx.strokeStyle = "white";
+    ctx.strokeText("Best:  " + best, 0.025 * xmax, 0.05 * ymax);
+    ctx.fillText("Best:  " + best, 0.025 * xmax, 0.05 * ymax);
 
     function drawTarget(target) {
         ctx.fillStyle = global.targetColor;
@@ -233,7 +230,8 @@ function main(argv) {
     global.xVelocity = -0.10;
     global.yVelocity = 0;
     global.targets = [];
-    global.history = [];
+    global.score = 0;
+    global.best = 0;
     global.canvas = document.getElementById("canvas");
     global.context = null;
     global.midiAccess = null;
