@@ -142,7 +142,7 @@ function tick(cache) {
     }
     if (cache.targetCounter > 1 / global.targetsPerSecond) {
         var idx = utils.i32(utils.random(null) * global.pool.length);
-        var offset = global.pool[idx];
+        var offset = utils.mod(global.pool[idx], global.key.length);
         var newTarget = {
             offset: offset,
             x: 1,
