@@ -206,7 +206,7 @@ function draw() {
     ctx.fillText("Record: " + best, 0.025 * xmax, 0.05 * ymax);
 
     function drawTarget(target) {
-        var radius = Math.min(global.targetSize, xmax * (target.x - 0.1));
+        var radius = Math.min(global.targetSize, xmax * Math.abs(target.x - 0.1));
         ctx.fillStyle = global.targetColor;
         ctx.strokeStyle = "black";
         ctx.beginPath();
