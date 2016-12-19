@@ -17,6 +17,16 @@ var MIDI_MAP = [
     "BB",
 ];
 
+var URI_SUBS = [
+    ["\"", "Q"],
+    [",", "AND"],
+    [":", "IS"],
+    ["{", "OBJ"],
+    ["}", "JBO"],
+    ["[", "LST"],
+    ["]", "TSL"]
+];
+
 var CC_MAJOR = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21];
 
 ////////////////////////////////////////////////////////////////
@@ -25,7 +35,7 @@ var CC_MAJOR = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21];
 
 function midiInputSetup() {
     var ok = false;
-    var input = global.midiAccess.inputs.values().next();
+    var input = global.midi_access.inputs.values().next();
     while (input && !(input.done)) {
         input.value.onmidimessage = onMIDIMessage;
         input = input.next;
@@ -36,8 +46,8 @@ function midiInputSetup() {
     }
 }
 function onMIDIAccept(midi) {
-    global.midiAccess = midi;
-    global.midiAccess.onstatechange = midiInputSetup;
+    global.midi_access = midi;
+    global.midi_access.onstatechange = midiInputSetup;
     midiInputSetup();
     tick.cache = {};
     tick(tick.cache);
@@ -71,7 +81,7 @@ function note2frequency(note) {
 }
 function noteOn(note) {
     console.log("Note on: " + note + " - " + note2frequency(note) + "hz");
-    global.activeNotes.push(note);
+    global.active_notes.push(note);
     if (global.targets.length < 1) {
         onWrongNote();
     }
@@ -91,7 +101,7 @@ function noteOn(note) {
         var target = global.targets[0];
         global.memento = note - global.key[target.offset];
         global.targets.splice(0, 1);
-        global.targetColor = "black";
+        global.target_color = "black";
         global.score += 1;
         if (global.score > global.best) {
             global.best = global.score;
@@ -99,16 +109,16 @@ function noteOn(note) {
     }
     function onWrongNote() {
         global.memento = null;
-        global.targetColor = "gray";
+        global.target_color = "gray";
         global.score = 0;
     }
 }
 function noteOff(note) {
     console.log("Note off: " + note + " - " + note2frequency(note) + "hz");
-    var activeNotes = global.activeNotes;
-    var idx = activeNotes.indexOf(note);
+    var active_notes = global.active_notes;
+    var idx = active_notes.indexOf(note);
     if (idx > -1) {
-        activeNotes.splice(idx, 1);
+        active_notes.splice(idx, 1);
     }
 }
 
@@ -122,23 +132,23 @@ function tick(cache) {
         cache.frameCounter = 0;
         cache.targetCounter = 0;
     }
-    var dt = 1 / global.ticksPerSecond;
+    var dt = 1 / global.ticks_per_second;
     for (var i = 0; i < global.targets.length; i++) {
         var target = global.targets[i];
-        target.x += global.xVelocity * dt;
-        target.y += global.yVelocity * dt;
+        target.x += global.x_velocity * dt;
+        target.y += global.y_velocity * dt;
     }
     while (global.targets.length > 0 && global.targets[0].x < 0.1) {
         global.memento = null;
         global.targets.splice(0, 1);
-        global.targetColor = "red";
+        global.target_color = "red";
         global.score = 0;
     }
-    if (cache.frameCounter > 1 / global.framesPerSecond) {
+    if (cache.frameCounter > 1 / global.frames_per_second) {
         draw();
         cache.frameCounter = 0;
     }
-    if (cache.targetCounter > 1 / global.targetsPerSecond) {
+    if (cache.targetCounter > 1 / global.targets_per_second) {
         var idx = utils.i32(utils.random(null) * global.pool.length);
         var offset = utils.mod(global.pool[idx], global.key.length);
         var newTarget = {
@@ -153,7 +163,7 @@ function tick(cache) {
     cache.targetCounter += dt;
     setTimeout(function() {
         tick(cache);
-    }, 1000 / global.ticksPerSecond);
+    }, 1000 / global.ticks_per_second);
 }
 
 function draw() {
@@ -207,8 +217,8 @@ function draw() {
     ctx.fillText("Record: " + best, 0.025 * xmax, 0.05 * ymax);
 
     function drawTarget(target) {
-        var radius = Math.min(global.targetSize, xmax * Math.abs(target.x - 0.1));
-        ctx.fillStyle = global.targetColor;
+        var radius = Math.min(global.target_size, xmax * Math.abs(target.x - 0.1));
+        ctx.fillStyle = global.target_color;
         ctx.strokeStyle = "black";
         ctx.beginPath();
         ctx.arc(xmax * target.x, ymax * target.y, radius, 0, 2 * Math.PI, false);
@@ -232,21 +242,22 @@ function draw() {
 function main(argv) {
     global.key = CC_MAJOR;
     global.pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    global.framesPerSecond = 60;
-    global.ticksPerSecond = 60;
-    global.targetsPerSecond = 1;
-    global.targetColor = "black";
-    global.targetSize = 16;
-    global.xVelocity = -0.10;
-    global.yVelocity = 0;
+    global.frames_per_second = 60;
+    global.ticks_per_second = 60;
+    global.targets_per_second = 1;
+    global.target_color = "black";
+    global.target_size = 16;
+    global.x_velocity = -0.10;
+    global.y_velocity = 0;
     global.targets = [];
     global.memento = null;
     global.score = 0;
     global.best = 0;
     global.canvas = document.getElementById("canvas");
     global.context = null;
-    global.midiAccess = null;
-    global.activeNotes = [];
+    global.midi_access = null;
+    global.active_notes = [];
+    utils.update(global, utils.uri2data(window.location.href, URI_SUBS));
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
     window.addEventListener('load', function() {
         global.context = new AudioContext();
