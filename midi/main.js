@@ -149,14 +149,26 @@ function tick(cache) {
         cache.frameCounter = 0;
     }
     if (cache.targetCounter > 1 / global.targets_per_second) {
-        var idx = utils.i32(utils.random(null) * global.pool.length);
-        var offset = utils.mod(global.pool[idx], global.key.length);
-        var newTarget = {
-            offset: offset,
-            x: 1,
-            y: 0.8 - offset * 0.05,
-        };
-        global.targets.push(newTarget);
+        var offset = null;
+        for (var i = 0; i < global.mystery.length; i++) {
+            var elt = global.mystery.splice(0, 1)[0];
+            global.mystery.push(elt);
+            if (utils.contains(global.pool, elt)) {
+                offset = elt;
+                break;
+            }
+        }
+        if (global.pool.length > 0 && offset === null) {
+            var idx = utils.i32(utils.random(null) * global.pool.length);
+            offset = utils.mod(global.pool[idx], global.key.length);
+        }
+        if (offset !== null) {
+            global.targets.push({
+                offset: offset,
+                x: 1,
+                y: 0.8 - offset * 0.05,
+            });
+        }
         cache.targetCounter = 0;
     }
     cache.frameCounter += dt;
@@ -250,6 +262,7 @@ function main(argv) {
     global.x_velocity = -0.10;
     global.y_velocity = 0;
     global.targets = [];
+    global.mystery = [];
     global.memento = null;
     global.score = 0;
     global.best = 0;
