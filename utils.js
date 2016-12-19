@@ -52,11 +52,6 @@ var utils = (function() {
 	}
 	counter += 1;
 
-	function mod(lhs, rhs) {
-		return ((lhs % rhs) + rhs) % rhs;
-	}
-	counter += 1;
-
 	function assert(invariant) {
 		if (!invariant) {
 			var src = (new Error).stack.split("\n")[4].trim();
@@ -75,6 +70,15 @@ var utils = (function() {
 	function unlessNaN(arg, fn) {
 		if (arg === arg) {
 			fn();
+		}
+	}
+	counter += 1;
+
+	function update(target, obj){
+		for (var key in obj) {
+			if (obj.hasOwnProperty(key)) {
+				target[key] = obj[key];
+			}
 		}
 	}
 	counter += 1;
@@ -137,6 +141,11 @@ var utils = (function() {
 		catch (err) {
 			return null;
 		}
+	}
+	counter += 1;
+
+	function mod(lhs, rhs) {
+		return ((lhs % rhs) + rhs) % rhs;
 	}
 	counter += 1;
 
@@ -539,7 +548,6 @@ var utils = (function() {
 		$: $,
 		all: all,
 		any: any,
-		mod: mod,
 		assert: assert,
 		contains: contains,
 		countKeys: countKeys,
@@ -558,6 +566,7 @@ var utils = (function() {
 		isFrozen: isFrozen,
 		keyEventSourceId: keyEventSourceId,
 		mergeSort: mergeSort,
+		mod: mod,
 		orElse: orElse,
 		permutations: permutations,
 		randInt32: randInt32,
@@ -570,6 +579,7 @@ var utils = (function() {
 		strSwap: strSwap,
 		ui32: ui32,
 		unlessNaN: unlessNaN,
+		update: update,
 		uri2data: uri2data,
 		uriDecode: uriDecode,
 		uriEncode: uriEncode,
