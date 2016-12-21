@@ -2,6 +2,18 @@
 
 var global = {};
 
+var KEYBOARD_MAP = {
+    "a": 69,
+    "s": 71,
+    "d": 72,
+    "f": 74,
+    "g": 76,
+    "h": 77,
+    "j": 79,
+    "k": 81,
+    "l": 83,
+};
+
 var MIDI_MAP = [
     "CC",
     "CD",
@@ -27,7 +39,7 @@ var URI_SUBS = [
     ["]", "TSL"]
 ];
 
-var CC_MAJOR = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21];
+var CC_MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
 ////////////////////////////////////////////////////////////////
 // midi
@@ -80,6 +92,9 @@ function note2frequency(note) {
     return utils.i32(440 * Math.pow(2, (note - 69) / 12));
 }
 function noteOn(note) {
+    if (utils.contains(global.active_notes, note)) {
+        return;
+    }
     console.log("Note on: " + note + " - " + note2frequency(note) + "hz");
     global.active_notes.push(note);
     if (global.targets.length < 1) {
@@ -87,19 +102,20 @@ function noteOn(note) {
     }
     else {
         var target = global.targets[0];
-        var temp = note - global.key[target.offset];
-        var memento = utils.orElse(global.memento, temp - (temp % 12));
-        var targetNote = memento + global.key[target.offset];
-        if (note === targetNote) {
-            onRightNote();
+        var key = global.key;
+        var idx = utils.mod(target.offset, key.length);
+        var delta = 12 * utils.i32(target.offset / key.length) + key[idx];
+        var memento = utils.orElse(global.memento, note - delta);
+        if (memento % 12 === 0 && note === memento + delta) {
+            onRightNote(memento);
         }
         else {
             onWrongNote();
         }
     }
-    function onRightNote() {
+    function onRightNote(memento) {
         var target = global.targets[0];
-        global.memento = note - global.key[target.offset];
+        global.memento = memento;
         global.targets.splice(0, 1);
         global.target_color = "black";
         global.score += 1;
@@ -114,6 +130,9 @@ function noteOn(note) {
     }
 }
 function noteOff(note) {
+    if (!(utils.contains(global.active_notes, note))) {
+        return;
+    }
     console.log("Note off: " + note + " - " + note2frequency(note) + "hz");
     var active_notes = global.active_notes;
     var idx = active_notes.indexOf(note);
@@ -284,4 +303,18 @@ function main(argv) {
             alert("MIDI functionality not supported by browser.")
         }
     });
+    document.onkeydown = function(evt) {
+        var keyid = utils.keyEventSourceId(evt);
+        if (KEYBOARD_MAP.hasOwnProperty(keyid)) {
+            var note = KEYBOARD_MAP[keyid];
+            noteOn(note);
+        }
+    };
+    document.onkeyup = function(evt) {
+        var keyid = utils.keyEventSourceId(evt);
+        if (KEYBOARD_MAP.hasOwnProperty(keyid)) {
+            var note = KEYBOARD_MAP[keyid];
+            noteOff(note);
+        }
+    };
 }
