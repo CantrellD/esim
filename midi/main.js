@@ -104,7 +104,7 @@ function noteOn(note) {
         var target = global.targets[0];
         var key = global.key;
         var idx = utils.mod(target.offset, key.length);
-        var delta = 12 * utils.i32(target.offset / key.length) + key[idx];
+        var delta = 12 * Math.floor(target.offset / key.length) + key[idx];
         var memento = utils.orElse(global.memento, note - delta);
         if (memento % 12 === 0 && note === memento + delta) {
             onRightNote(memento);
