@@ -172,7 +172,7 @@ function tick(cache) {
         if (global.mystery === null) {
             if (global.pool.length > 0) {
                 var idx = utils.i32(utils.random(null) * global.pool.length);
-                offset = utils.mod(global.pool[idx], global.key.length);
+                offset = global.pool[idx];
             }
         }
         else {
