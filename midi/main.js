@@ -188,7 +188,7 @@ function tick(cache) {
             global.targets.push({
                 offset: offset,
                 x: 1,
-                y: 0.8 - offset * 0.05,
+                y: 0.8 - (offset + global.key[0]) * 0.05,
             });
         }
         cache.targetCounter = 0;
