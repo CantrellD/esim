@@ -188,7 +188,7 @@ function tick(cache) {
             global.targets.push({
                 offset: offset,
                 x: 1,
-                y: 0.8 - offset * 0.05,
+                y: 0.5 - offset * 0.025,
             });
         }
         cache.targetCounter = 0;
@@ -212,26 +212,40 @@ function draw() {
     ctx.fillRect(0, 0, cvs.width, cvs.height);
 
     // border
-    drawLine("black", xmin, ymin, xmin, ymax);
-    drawLine("black", xmin, ymin, xmax, ymin);
-    drawLine("black", xmax, ymin, xmax, ymax);
-    drawLine("black", xmin, ymax, xmax, ymax);
+    drawLine("black", xmin, ymin, xmin, ymax, false);
+    drawLine("black", xmin, ymin, xmax, ymin, false);
+    drawLine("black", xmax, ymin, xmax, ymax, false);
+    drawLine("black", xmin, ymax, xmax, ymax, false);
 
     // boundary
-    drawLine("black", 0.1 * xmax, ymin, 0.1 * xmax, ymax);
+    drawLine("black", 0.1 * xmax, ymin, 0.1 * xmax, ymax, false);
 
-    // bar
-    drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax);
-    drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax);
-    drawLine("black", 0, 0.5 * ymax, xmax, 0.5 * ymax);
-    drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax);
-    drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax);
+    // guide one
+    drawLine("lightGray", 0, 0.1 * ymax, xmax, 0.1 * ymax, false);
+    drawLine("lightGray", 0, 0.15 * ymax, xmax, 0.15 * ymax, false);
+    drawLine("lightGray", 0, 0.2 * ymax, xmax, 0.2 * ymax, false);
 
-    // extended bar
-    drawLine("lightGray", 0, 0.1 * ymax, xmax, 0.1 * ymax);
-    drawLine("lightGray", 0, 0.2 * ymax, xmax, 0.2 * ymax);
-    drawLine("lightGray", 0, 0.8 * ymax, xmax, 0.8 * ymax);
-    drawLine("lightGray", 0, 0.9 * ymax, xmax, 0.9 * ymax);
+    // bar one
+    drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, true);
+    drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, true);
+    drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, true);
+    drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, true);
+    drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, true);
+
+    // guide two
+    drawLine("lightGray", 0, 0.5 * ymax, xmax, 0.5 * ymax, false);
+
+    // bar two
+    drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, true);
+    drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, true);
+    drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, true);
+    drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, true);
+    drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, true);
+
+    // guide three
+    drawLine("lightGray", 0, 0.8 * ymax, xmax, 0.8 * ymax, false);
+    drawLine("lightGray", 0, 0.85 * ymax, xmax, 0.85 * ymax, false);
+    drawLine("lightGray", 0, 0.9 * ymax, xmax, 0.9 * ymax, false);
 
     for (var i = 0; i < global.targets.length; i++) {
         var target = global.targets[i];
@@ -252,20 +266,23 @@ function draw() {
 
     function drawTarget(target) {
         var radius = Math.min(global.target_size, xmax * Math.abs(target.x - 0.1));
+        ctx.beginPath();
         ctx.fillStyle = global.target_color;
         ctx.strokeStyle = "black";
-        ctx.beginPath();
         ctx.arc(xmax * target.x, ymax * target.y, radius, 0, 2 * Math.PI, false);
         ctx.fill();
         ctx.stroke();
+        ctx.closePath();
     }
 
-    function drawLine(color, x1, y1, x2, y2) {
-        ctx.strokeStyle = color;
+    function drawLine(color, x1, y1, x2, y2, wide) {
         ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = wide ? 2 : 1;
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
+        ctx.closePath();
     }
 }
 
@@ -280,7 +297,7 @@ function main(argv) {
     global.ticks_per_second = 60;
     global.targets_per_second = 1;
     global.target_color = "black";
-    global.target_size = 16;
+    global.target_size = 8;
     global.x_velocity = -0.10;
     global.y_velocity = 0;
     global.targets = [];
