@@ -125,8 +125,8 @@ function noteOn(note) {
     }
     function onWrongNote() {
         global.memento = null;
-        global.target_color = "gray";
-        global.score = 0;
+        global.target_color = "red";
+        global.score = global.score / 2;
     }
 }
 function noteOff(note) {
@@ -161,7 +161,7 @@ function tick(cache) {
         global.memento = null;
         global.targets.splice(0, 1);
         global.target_color = "red";
-        global.score = 0;
+        global.score = global.score / 2;
     }
     if (cache.frameCounter > 1 / global.frames_per_second) {
         draw();
@@ -292,7 +292,7 @@ function draw() {
 
 function main(argv) {
     global.key = CC_MAJOR;
-    global.pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    global.pool = [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     global.frames_per_second = 60;
     global.ticks_per_second = 60;
     global.targets_per_second = 1;
