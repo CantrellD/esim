@@ -126,7 +126,7 @@ function noteOn(note) {
     function onWrongNote() {
         global.memento = null;
         global.target_color = "red";
-        global.score = utils.i32(global.score / 2);
+        global.score = Math.max(0, global.score - 5);
     }
 }
 function noteOff(note) {
@@ -161,7 +161,7 @@ function tick(cache) {
         global.memento = null;
         global.targets.splice(0, 1);
         global.target_color = "red";
-        global.score = utils.i32(global.score / 2);
+        global.score = Math.max(0, global.score - 5);
     }
     if (cache.frameCounter > 1 / global.frames_per_second) {
         draw();
