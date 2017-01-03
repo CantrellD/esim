@@ -220,32 +220,29 @@ function draw() {
     // boundary
     drawLine("black", 0.1 * xmax, ymin, 0.1 * xmax, ymax, false);
 
-    // guide one
-    drawLine("lightGray", 0, 0.1 * ymax, xmax, 0.1 * ymax, false);
-    drawLine("lightGray", 0, 0.15 * ymax, xmax, 0.15 * ymax, false);
-    drawLine("lightGray", 0, 0.2 * ymax, xmax, 0.2 * ymax, false);
+    // guides
+    for (var yprop = 0.1; yprop < 0.95; yprop += 0.05) {
+        var yval = yprop * ymax;
+        drawLine("lightGray", 0, yval, xmax, yval, false);
+    }
 
-    // bar one
-    drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, global.treble);
-    drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, global.treble;
-    drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, global.treble);
-    drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, global.treble);
-    drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, global.treble);
+    // staff one
+    if (global.treble) {
+        drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, true);
+        drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, true);
+        drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, true);
+        drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, true);
+        drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, true);
+    }
 
-    // guide two
-    drawLine("lightGray", 0, 0.5 * ymax, xmax, 0.5 * ymax, false);
-
-    // bar two
-    drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, global.bass);
-    drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, global.bass);
-    drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, global.bass);
-    drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, global.bass);
-    drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, global.bass);
-
-    // guide three
-    drawLine("lightGray", 0, 0.8 * ymax, xmax, 0.8 * ymax, false);
-    drawLine("lightGray", 0, 0.85 * ymax, xmax, 0.85 * ymax, false);
-    drawLine("lightGray", 0, 0.9 * ymax, xmax, 0.9 * ymax, false);
+    // staff two
+    if (global.bass) {
+        drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, true);
+        drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, true);
+        drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, true);
+        drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, true);
+        drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, true);
+    }
 
     for (var i = 0; i < global.targets.length; i++) {
         var target = global.targets[i];
