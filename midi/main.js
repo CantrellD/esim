@@ -226,21 +226,21 @@ function draw() {
     drawLine("lightGray", 0, 0.2 * ymax, xmax, 0.2 * ymax, false);
 
     // bar one
-    drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, true);
-    drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, true);
-    drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, true);
-    drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, true);
-    drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, true);
+    drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, global.treble);
+    drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, global.treble;
+    drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, global.treble);
+    drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, global.treble);
+    drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, global.treble);
 
     // guide two
     drawLine("lightGray", 0, 0.5 * ymax, xmax, 0.5 * ymax, false);
 
     // bar two
-    drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, true);
-    drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, true);
-    drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, true);
-    drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, true);
-    drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, true);
+    drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, global.bass);
+    drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, global.bass);
+    drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, global.bass);
+    drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, global.bass);
+    drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, global.bass);
 
     // guide three
     drawLine("lightGray", 0, 0.8 * ymax, xmax, 0.8 * ymax, false);
@@ -293,6 +293,8 @@ function draw() {
 function main(argv) {
     global.key = CC_MAJOR;
     global.pool = [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    global.treble = true;
+    global.bass = true;
     global.frames_per_second = 60;
     global.ticks_per_second = 60;
     global.targets_per_second = 1;
