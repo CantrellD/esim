@@ -126,7 +126,7 @@ function noteOn(note) {
     function onWrongNote() {
         global.memento = null;
         global.target_color = "red";
-        global.score = Math.max(0, global.score - 5);
+        global.score = Math.max(0, global.score - global.penalty);
     }
 }
 function noteOff(note) {
@@ -161,7 +161,7 @@ function tick(cache) {
         global.memento = null;
         global.targets.splice(0, 1);
         global.target_color = "red";
-        global.score = Math.max(0, global.score - 5);
+        global.score = Math.max(0, global.score - global.penalty);
     }
     if (cache.frameCounter > 1 / global.frames_per_second) {
         draw();
@@ -304,6 +304,7 @@ function main(argv) {
     global.memento = null;
     global.score = 0;
     global.best = 0;
+    global.penalty = 5;
     global.canvas = document.getElementById("canvas");
     global.context = null;
     global.midi_access = null;
