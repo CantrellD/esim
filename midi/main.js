@@ -39,7 +39,25 @@ var URI_SUBS = [
     ["]", "TSL"]
 ];
 
-var CC_MAJOR = [0, 2, 4, 5, 7, 9, 11];
+var SHARP_CHAR = '\u266F';
+var FLAT_CHAR = '\u266D';
+
+var MAJOR_KEYS = {
+    "F": [0, 2, 4, 5, 7, 9, 10],
+    "C": [0, 2, 4, 5, 7, 9, 11],
+    "G": [0, 2, 4, 6, 7, 9, 11],
+    "D": [1, 2, 4, 6, 7, 9, 11],
+    "A": [1, 2, 4, 6, 8, 9, 11],
+    "E": [1, 3, 4, 6, 8, 9, 11],
+    "B": [1, 3, 4, 6, 8, 10, 11],
+    "F#": [1, 3, 5, 6, 8, 10, 11],
+    "Gb": [-1, 1, 3, 5, 6, 8, 10],
+    "Db": [0, 1, 3, 5, 6, 8, 10],
+    "Ab": [0, 1, 3, 5, 7, 8, 10],
+    "Eb": [0, 2, 3, 5, 7, 8, 10],
+    "Bb": [0, 2, 3, 5, 7, 9, 10],
+}
+
 
 ////////////////////////////////////////////////////////////////
 // midi
@@ -207,79 +225,127 @@ function draw() {
     var ymin = 0;
     var xmax = cvs.width;
     var ymax = cvs.height;
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-    // border
-    drawLine("black", xmin, ymin, xmin, ymax, false);
-    drawLine("black", xmin, ymin, xmax, ymin, false);
-    drawLine("black", xmax, ymin, xmax, ymax, false);
-    drawLine("black", xmin, ymax, xmax, ymax, false);
+    drawLines();
+    drawTargets();
+    drawInfo();
 
-    // boundary
-    drawLine("black", 0.1 * xmax, ymin, 0.1 * xmax, ymax, false);
+    function drawLines() {
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-    // guides
-    for (var yprop = 0.1; yprop < 0.95; yprop += 0.05) {
-        var yval = yprop * ymax;
-        drawLine("lightGray", 0, yval, xmax, yval, false);
+        // border
+        drawLine("black", xmin, ymin, xmin, ymax, false);
+        drawLine("black", xmin, ymin, xmax, ymin, false);
+        drawLine("black", xmax, ymin, xmax, ymax, false);
+        drawLine("black", xmin, ymax, xmax, ymax, false);
+
+        // boundary
+        drawLine("black", 0.1 * xmax, ymin, 0.1 * xmax, ymax, false);
+
+        // guides
+        for (var yprop = 0.1; yprop < 0.95; yprop += 0.05) {
+            var yval = yprop * ymax;
+            drawLine("lightGray", 0, yval, xmax, yval, false);
+        }
+
+        // staff one
+        if (global.treble) {
+            drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, true);
+            drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, true);
+            drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, true);
+            drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, true);
+            drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, true);
+        }
+
+        // staff two
+        if (global.bass) {
+            drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, true);
+            drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, true);
+            drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, true);
+            drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, true);
+            drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, true);
+        }
+        function drawLine(color, x1, y1, x2, y2, wide) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = wide ? 2 : 1;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.closePath();
+        }
     }
 
-    // staff one
-    if (global.treble) {
-        drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, true);
-        drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, true);
-        drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, true);
-        drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, true);
-        drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, true);
+    function drawTargets() {
+        for (var i = 0; i < global.targets.length; i++) {
+            var target = global.targets[i];
+            drawTarget(target);
+        }
+        function drawTarget(target) {
+            var xval = target.x * xmax;
+            var yval = target.y * ymax;
+            var rval = Math.min(
+                global.target_size,
+                xmax * Math.abs(target.x - 0.1)
+            );
+            ctx.beginPath();
+            ctx.fillStyle = global.target_color;
+            ctx.strokeStyle = "black";
+            ctx.arc(xval, yval, rval, 0, 2 * Math.PI, false);
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+        }
     }
 
-    // staff two
-    if (global.bass) {
-        drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, true);
-        drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, true);
-        drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, true);
-        drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, true);
-        drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, true);
-    }
+    function drawInfo() {
+        var xlut = {
+            flats: [0.06, 0.04, 0.02, 0.07, 0.05, 0.03, 0.01],
+            sharps: [0.02, 0.04, 0.06, 0.01, 0.03, 0.05, 0.07],
+        };
+        var ylut = {
+            flats: [0.325, 0.3, 0.275, 0.425, 0.4, 0.375, 0.35],
+            sharps: [0.325, 0.3, 0.275, 0.25, 0.225, 0.375, 0.35],
+        };
+        var xval = null;
+        var yval = null;
+        var symbol = null;
+        for (var i = 0; i < global.key.length; i++) {
+            symbol = null;
+            if (global.key[i] < MAJOR_KEYS["C"][i]) {
+                symbol = FLAT_CHAR;
+                xval = xlut.flats[i] * xmax;
+                yval = ylut.flats[i] * ymax + 8;
+            }
+            else if (global.key[i] > MAJOR_KEYS["C"][i]) {
+                symbol = SHARP_CHAR;
+                xval = xlut.sharps[i] * xmax;
+                yval = ylut.sharps[i] * ymax + 8;
+            }
+            if (symbol !== null) {
+                drawText(symbol, xval, yval, "black", "black", 16);
+            }
+        }
 
-    for (var i = 0; i < global.targets.length; i++) {
-        var target = global.targets[i];
-        drawTarget(target);
-    }
+        var score = global.score;
+        xval = 0.025 * xmax;
+        yval = 0.025 * ymax;
+        drawText("Points: " + score, xval, yval, "black", "white", 8);
 
-    var score = global.score;
-    ctx.fillStyle = "black";
-    ctx.strokeStyle = "white";
-    ctx.strokeText("Points: " + score, 0.025 * xmax, 0.025 * ymax);
-    ctx.fillText("Points: " + score, 0.025 * xmax, 0.025 * ymax);
+        var best = global.best;
+        xval = 0.025 * xmax;
+        yval = 0.05 * ymax;
+        drawText("Record: " + best, xval, yval, "black", "white", 8);
 
-    var best = global.best;
-    ctx.fillStyle = "black";
-    ctx.strokeStyle = "white";
-    ctx.strokeText("Record: " + best, 0.025 * xmax, 0.05 * ymax);
-    ctx.fillText("Record: " + best, 0.025 * xmax, 0.05 * ymax);
-
-    function drawTarget(target) {
-        var radius = Math.min(global.target_size, xmax * Math.abs(target.x - 0.1));
-        ctx.beginPath();
-        ctx.fillStyle = global.target_color;
-        ctx.strokeStyle = "black";
-        ctx.arc(xmax * target.x, ymax * target.y, radius, 0, 2 * Math.PI, false);
-        ctx.fill();
-        ctx.stroke();
-        ctx.closePath();
-    }
-
-    function drawLine(color, x1, y1, x2, y2, wide) {
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = wide ? 2 : 1;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.closePath();
+        function drawText(txt, x, y, fColor, sColor, size) {
+            ctx.font = "" + size + "pt Arial";
+            ctx.strokeStyle = sColor;
+            ctx.fillStyle = fColor;
+            ctx.strokeText(txt, x, y);
+            ctx.fillText(txt, x, y);
+        }
     }
 }
 
@@ -288,8 +354,8 @@ function draw() {
 ////////////////////////////////////////////////////////////////
 
 function main(argv) {
-    global.key = CC_MAJOR;
-    global.pool = [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    global.key = MAJOR_KEYS["C"];
+    global.pool = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
     global.treble = true;
     global.bass = true;
     global.frames_per_second = 60;
