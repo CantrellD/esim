@@ -113,8 +113,31 @@ function noteOn(note) {
     if (utils.contains(global.active_notes, note)) {
         return;
     }
-    console.log("Note on: " + note + " - " + note2frequency(note) + "hz");
+    if (global.verbose) {
+        console.log("Note on: " + note + " - " + note2frequency(note) + "hz");
+    }
     global.active_notes.push(note);
+    onInput(note);
+}
+function noteOff(note) {
+    if (!(utils.contains(global.active_notes, note))) {
+        return;
+    }
+    if (global.verbose) {
+        console.log("Note off: " + note + " - " + note2frequency(note) + "hz");
+    }
+    var active_notes = global.active_notes;
+    var idx = active_notes.indexOf(note);
+    if (idx > -1) {
+        active_notes.splice(idx, 1);
+    }
+}
+
+////////////////////////////////////////////////////////////////
+// game
+////////////////////////////////////////////////////////////////
+
+function onInput(note) {
     if (global.targets.length < 1) {
         onWrongNote();
     }
@@ -142,26 +165,15 @@ function noteOn(note) {
         }
     }
     function onWrongNote() {
-        global.memento = null;
-        global.target_color = "red";
-        global.score = Math.max(0, global.score - global.penalty);
-    }
-}
-function noteOff(note) {
-    if (!(utils.contains(global.active_notes, note))) {
-        return;
-    }
-    console.log("Note off: " + note + " - " + note2frequency(note) + "hz");
-    var active_notes = global.active_notes;
-    var idx = active_notes.indexOf(note);
-    if (idx > -1) {
-        active_notes.splice(idx, 1);
+        oops();
     }
 }
 
-////////////////////////////////////////////////////////////////
-// game
-////////////////////////////////////////////////////////////////
+function oops() {
+        global.memento = null;
+        global.target_color = "red";
+        global.score = Math.max(0, global.score - global.penalty);
+}
 
 function tick(cache) {
     if (!("tick" in cache)) {
@@ -170,22 +182,51 @@ function tick(cache) {
         cache.targetCounter = 0;
     }
     var dt = 1 / global.ticks_per_second;
-    for (var i = 0; i < global.targets.length; i++) {
-        var target = global.targets[i];
-        target.x += global.x_velocity * dt;
-        target.y += global.y_velocity * dt;
-    }
-    while (global.targets.length > 0 && global.targets[0].x < 0.1) {
-        global.memento = null;
-        global.targets.splice(0, 1);
-        global.target_color = "red";
-        global.score = Math.max(0, global.score - global.penalty);
-    }
     if (cache.frameCounter > 1 / global.frames_per_second) {
         draw();
         cache.frameCounter = 0;
     }
-    if (cache.targetCounter > 1 / global.targets_per_second) {
+    var mode = global.mode;
+    if (mode === "A" && cache.targetCounter > 1 / global.targets_per_second) {
+        for (var i = 0; i < global.targets.length; i++) {
+            var target = global.targets[i];
+            target.x += global.x_velocity * dt;
+            target.y += global.y_velocity * dt;
+        }
+        while (global.targets.length > 0 && global.targets[0].x < 0.1) {
+            global.targets.splice(0, 1);
+            oops();
+        }
+        var offset = requestOffset();
+        if (offset !== null) {
+            global.targets.push({
+                offset: offset,
+                x: 1,
+                y: 0.5 - offset * 0.025,
+            });
+        }
+        cache.targetCounter = 0;
+    }
+    else if (mode === "B" && global.targets.length < 1) {
+        for (var i = 0; i < 8; i++) {
+            var xval = 0.2 + i * 0.1;
+            var offset = requestOffset();
+            if (offset !== null) {
+                global.targets.push({
+                    offset: offset,
+                    x: xval,
+                    y: 0.5 - offset * 0.025,
+                });
+            }
+        }
+    }
+    cache.frameCounter += dt;
+    cache.targetCounter += dt;
+    setTimeout(function() {
+        tick(cache);
+    }, 1000 / global.ticks_per_second);
+
+    function requestOffset() {
         var offset = null;
         if (global.mystery === null) {
             if (global.pool.length > 0) {
@@ -202,20 +243,8 @@ function tick(cache) {
                 }
             }
         }
-        if (offset !== null) {
-            global.targets.push({
-                offset: offset,
-                x: 1,
-                y: 0.5 - offset * 0.025,
-            });
-        }
-        cache.targetCounter = 0;
+        return offset;
     }
-    cache.frameCounter += dt;
-    cache.targetCounter += dt;
-    setTimeout(function() {
-        tick(cache);
-    }, 1000 / global.ticks_per_second);
 }
 
 function draw() {
@@ -354,7 +383,9 @@ function draw() {
 ////////////////////////////////////////////////////////////////
 
 function main(argv) {
+    global.verbose = false;
     global.key = MAJOR_KEYS["C"];
+    global.mode = "B";
     global.pool = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
     global.treble = true;
     global.bass = true;
