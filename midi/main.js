@@ -182,21 +182,23 @@ function tick(cache) {
         cache.targetCounter = 0;
     }
     var dt = 1 / global.ticks_per_second;
+    if (global.mode === "A") {
+        for (var i = 0; i < global.targets.length; i++) {
+            var target = global.targets[i];
+            target.x += global.x_velocity * dt;
+            target.y += global.y_velocity * dt;
+        }
+    }
+    while (global.targets.length > 0 && global.targets[0].x < 0.1) {
+        global.targets.splice(0, 1);
+        oops();
+    }
     if (cache.frameCounter > 1 / global.frames_per_second) {
         draw();
         cache.frameCounter = 0;
     }
     var mode = global.mode;
     if (mode === "A" && cache.targetCounter > 1 / global.targets_per_second) {
-        for (var i = 0; i < global.targets.length; i++) {
-            var target = global.targets[i];
-            target.x += global.x_velocity * dt;
-            target.y += global.y_velocity * dt;
-        }
-        while (global.targets.length > 0 && global.targets[0].x < 0.1) {
-            global.targets.splice(0, 1);
-            oops();
-        }
         var offset = requestOffset();
         if (offset !== null) {
             global.targets.push({
