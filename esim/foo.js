@@ -82,6 +82,7 @@ utils.invoke(null, [City.prototype], function(cls) {
         ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
         ctx.fill();
         ctx.stroke();
+        ctx.closePath();
     };
     cls.copy = function() {
         var ret = new City(0, 0);
@@ -234,12 +235,14 @@ function draw(graph, cache) {
                             ctx.beginPath();
                             ctx.arc(ci.x, ci.y, r, 0, 2 * Math.PI);
                             ctx.stroke();
+                            ctx.closePath();
                         });
                     }
                     ctx.strokeStyle = "white";
                     ctx.beginPath();
                     ctx.arc(ci.x, ci.y, ci.getSigma(), 0, 2 * Math.PI);
                     ctx.stroke();
+                    ctx.closePath();
                 });
             }
             else {
@@ -259,6 +262,7 @@ function draw(graph, cache) {
                             ctx.moveTo(0, b);
                             ctx.lineTo(cvs.width, m * cvs.width + b);
                             ctx.stroke();
+                            ctx.closePath();
                         }
                         else {
                             ctx.strokeStyle = "black";
@@ -266,6 +270,7 @@ function draw(graph, cache) {
                             ctx.moveTo((ci.x + cj.x) / 2, 0);
                             ctx.lineTo((ci.x + cj.x) / 2, cvs.height);
                             ctx.stroke();
+                            ctx.closePath();
                         }
                     });
                 });
