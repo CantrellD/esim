@@ -14,43 +14,43 @@ var fmap = {
 var generators = {};
 
 function createToneGenerator(frequency, volume) {
-	var gen = ctx.createOscillator();
-	gen.frequency.value = frequency;
-	gen.type = "sine";
+    var gen = ctx.createOscillator();
+    gen.frequency.value = frequency;
+    gen.type = "sine";
 
-	var gnode = ctx.createGain();
-	gnode.gain.value = volume;
+    var gnode = ctx.createGain();
+    gnode.gain.value = volume;
 
-	gen.connect(gnode);
-	gnode.connect(ctx.destination);
-	return gen;
+    gen.connect(gnode);
+    gnode.connect(ctx.destination);
+    return gen;
 }
 
 function main() {
-	bButton = utils.$("#bButton")[0];
-	fField = utils.$("#fField")[0];
+    bButton = utils.$("#bButton")[0];
+    fField = utils.$("#fField")[0];
 
     fField.defaultValue = JSON.stringify(fmap);
 
-	document.onkeydown = function(evt) {
-		keyid = utils.keyEventSourceId(evt);
-		if (keyid in generators && generators[keyid] !== null) {
-			return;
-		}
-		if (keyid in fmap) {
-			frequency = fmap[keyid];
-			generators[keyid] = createToneGenerator(frequency, 0.25);
-			generators[keyid].start();
-		}
-	};
-	document.onkeyup = function(evt) {
-		keyid = utils.keyEventSourceId(evt);
-		if (keyid in generators && generators[keyid] !== null) {
-			generators[keyid].stop();
-			generators[keyid] = null;
-		}
-	};
-	bButton.onclick = function(evt) {
-		fmap = JSON.parse(fField.value);
-	};
+    document.onkeydown = function(evt) {
+        keyid = utils.keyEventSourceId(evt);
+        if (keyid in generators && generators[keyid] !== null) {
+            return;
+        }
+        if (keyid in fmap) {
+            frequency = fmap[keyid];
+            generators[keyid] = createToneGenerator(frequency, 0.25);
+            generators[keyid].start();
+        }
+    };
+    document.onkeyup = function(evt) {
+        keyid = utils.keyEventSourceId(evt);
+        if (keyid in generators && generators[keyid] !== null) {
+            generators[keyid].stop();
+            generators[keyid] = null;
+        }
+    };
+    bButton.onclick = function(evt) {
+        fmap = JSON.parse(fField.value);
+    };
 }
