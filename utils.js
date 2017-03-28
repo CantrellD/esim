@@ -60,6 +60,11 @@ var utils = (function() {
     }
     counter += 1;
 
+    function identity(arg) {
+        return arg;
+    }
+    counter += 1;
+
     function ifNaN(arg, fn) {
         if (arg !== arg) {
             fn();
@@ -74,23 +79,22 @@ var utils = (function() {
     }
     counter += 1;
 
-    function update(target, obj){
-        for (var key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                target[key] = obj[key];
+    function update(target, origin){
+        for (var key in origin) {
+            if (origin.hasOwnProperty(key)) {
+                target[key] = origin[key];
             }
         }
     }
     counter += 1;
 
-    function invoke(thisArg, argsArray, func) {
-        func.apply(thisArg, argsArray);
-    }
-    counter += 1;
-
-    function contains(arr, elt) {
+    function containsElement(arr, elt) {
         for (var i = 0; i < arr.length; i++) {
-            if ((isNaN(arr[i]) && isNaN(elt)) || (arr[i] === elt)) {
+            var bothNaN = false;
+            if (arr[i] !== arr[i] && elt !== elt) {
+                bothNaN = true;
+            }
+            if (bothNaN || (arr[i] === elt)) {
                 return true;
             }
         }
@@ -98,11 +102,11 @@ var utils = (function() {
     }
     counter += 1;
 
-    function countKeys(obj) {
-        var ret = 0;
+    function keys(obj) {
+        var ret = [];
         for (var key in obj) {
             if (obj.hasOwnProperty(key)) {
-                ret += 1;
+                ret.push(key);
             }
         }
         return ret;
@@ -124,28 +128,13 @@ var utils = (function() {
     }
     counter += 1;
 
-    function freeze(arg) {
-        try {
-            return Object.freeze(arg);
-        }
-        catch (err) {
-            return null;
-        }
-    }
-    counter += 1;
-
-    function isFrozen(arg) {
-        try {
-            return Object.isFrozen(arg);
-        }
-        catch (err) {
-            return null;
-        }
+    function div(lhs, rhs) {
+        return i32(lhs / rhs);
     }
     counter += 1;
 
     function mod(lhs, rhs) {
-        return ((lhs % rhs) + rhs) % rhs;
+        return i32(((lhs % rhs) + rhs) % rhs);
     }
     counter += 1;
 
@@ -549,22 +538,22 @@ var utils = (function() {
         all: all,
         any: any,
         assert: assert,
-        contains: contains,
-        countKeys: countKeys,
+        containsElement: containsElement,
         cycle: cycle,
         data2uri: data2uri,
+        div: div,
         forceBool: forceBool,
         forceFloat: forceFloat,
         forceInt: forceInt,
-        freeze: freeze,
         gauss: gauss,
+        keys: keys,
         hsl2rgb: hsl2rgb,
         i32: i32,
+        identity: identity,
         ifNaN: ifNaN,
         insertionSort: insertionSort,
-        invoke: invoke,
-        isFrozen: isFrozen,
         keyEventSourceId: keyEventSourceId,
+        keys: keys,
         mergeSort: mergeSort,
         mod: mod,
         orElse: orElse,
@@ -584,7 +573,7 @@ var utils = (function() {
         uriDecode: uriDecode,
         uriEncode: uriEncode,
     };
-    if (countKeys(helpers) !== helperc || countKeys(ret) !== counter) {
+    if (keys(helpers).length !== helperc || keys(ret).length !== counter) {
         console.log("WARNING: The utils module has an invalid state.");
     }
     return ret;

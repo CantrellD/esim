@@ -44,8 +44,8 @@ names.init_len = names.length;
 function City(x, y) {
     this.x = x;
     this.y = y;
-    this._voters = utils.orElse(utils.freeze([]), []);
-    this._history = utils.orElse(utils.freeze([]), []);
+    this._voters = [];
+    this._history = [];
     this._sigma = 0;
     this.radius = 8;
     this.moving = false;
@@ -54,7 +54,8 @@ function City(x, y) {
     this.name = "N/A";
     this.color = "gray";
 }
-utils.invoke(null, [City.prototype], function(cls) {
+(function() {
+    var cls = City.prototype;
     cls.getVoters = function() {
         return this._voters;
     };
@@ -148,14 +149,14 @@ utils.invoke(null, [City.prototype], function(cls) {
                 history.push(xy2index[xy]);
             }
         }
-        this._voters = utils.orElse(utils.freeze(voters), voters);
-        this._history = utils.orElse(utils.freeze(history), history);
+        this._voters = voters;
+        this._history = history;
         utils.assert(this.getPopulation() == arg);
         function args2xy(x, y) {
             return "x" + x.toString() + "y" + y.toString();
         }
     };
-});
+})();
 
 function autodraw() {
     var gBox = document.getElementById("graphBox");
