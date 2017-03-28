@@ -1,8 +1,12 @@
 "use strict";
 
-var global = {};
+// Degree: Index into a scale.
+// Tone: Relative pitch, integer number of semitones.
+// Note: Absolute pitch, integer values from MIDI table.
 
-var KEYBOARD_MAP = {
+var app = {};
+app.HOME_ROW = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "Enter"];
+app.DEBUG_KEYBOARD_MAP = {
     "a": 69,
     "s": 71,
     "d": 72,
@@ -12,60 +16,89 @@ var KEYBOARD_MAP = {
     "j": 79,
     "k": 81,
     "l": 83,
+    ";": 84,
+    "'": 86,
+    "Enter": 88,
 };
+app.TONES = {
+    "C": 0,
+    "C#": 1,
+    "Db": 1,
+    "D": 2,
+    "D#": 3,
+    "Eb": 3,
+    "E": 4,
+    "E#": 5,
+    "Fb": 4,
+    "F": 5,
+    "F#": 6,
+    "Gb": 6,
+    "G": 7,
+    "G#": 8,
+    "Ab": 8,
+    "A": 9,
+    "A#": 10,
+    "Bb": 10,
+    "B": 11,
+    "B#": 12,
+    "Cb": 11,
+};
+app.MODES = {
+    ionian:     [2, 2, 1, 2, 2, 2, 1],
+    dorian:     [2, 1, 2, 2, 2, 1, 2],
+    phrygian:   [1, 2, 2, 2, 1, 2, 2],
+    lydian:     [2, 2, 2, 1, 2, 2, 1],
+    mixolydian: [2, 2, 1, 2, 2, 1, 2],
+    aeolian:    [2, 1, 2, 2, 1, 2, 2],
+    locrian:    [1, 2, 2, 1, 2, 2, 2],
+};
+app.SHARP_CHAR = '\u266F';
+app.FLAT_CHAR = '\u266D';
 
-var MIDI_MAP = [
-    "CC",
-    "CD",
-    "DD",
-    "DE",
-    "EE",
-    "FF",
-    "FG",
-    "GG",
-    "GA",
-    "AA",
-    "AB",
-    "BB",
-];
+app.verbose = false;
+app.tonic = "C";
+app.mode = "ionian";
+app.octave = 5;
+app.signature = {upper: 4, lower: 4};
+app.pool = [0, 1, 2, 3, 4];
+app.kmap = createKeyboardMap(createScale(app.tonic, app.mode), app.octave);
 
-var URI_SUBS = [
-    ["\"", "Q"],
-    [",", "AND"],
-    [":", "IS"],
-    ["{", "OBJ"],
-    ["}", "JBO"],
-    ["[", "LST"],
-    ["]", "TSL"]
-];
+app.treble = true;
+app.bass = true;
+app.frames_per_second = 60;
+app.ticks_per_second = 60;
+app.targets_per_second = 1;
+app.target_color = "black";
+app.target_size = 8;
+app.edge = 0.1;
+app.x_velocity = -0.10;
+app.y_velocity = 0;
+app.targets = [];
+app.mystery = null;
+app.score = 0;
+app.best = 0;
+app.penalty = 5;
+app.midi_access = null;
+app.active_notes = [];
+app.frame_counter = 0;
+app.target_counter = 0;
 
-var SHARP_CHAR = '\u266F';
-var FLAT_CHAR = '\u266D';
-
-var MAJOR_KEYS = {
-    "F": [0, 2, 4, 5, 7, 9, 10],
-    "C": [0, 2, 4, 5, 7, 9, 11],
-    "G": [0, 2, 4, 6, 7, 9, 11],
-    "D": [1, 2, 4, 6, 7, 9, 11],
-    "A": [1, 2, 4, 6, 8, 9, 11],
-    "E": [1, 3, 4, 6, 8, 9, 11],
-    "B": [1, 3, 4, 6, 8, 10, 11],
-    "F#": [1, 3, 5, 6, 8, 10, 11],
-    "Gb": [-1, 1, 3, 5, 6, 8, 10],
-    "Db": [0, 1, 3, 5, 6, 8, 10],
-    "Ab": [0, 1, 3, 5, 7, 8, 10],
-    "Eb": [0, 2, 3, 5, 7, 8, 10],
-    "Bb": [0, 2, 3, 5, 7, 9, 10],
-}
-
+app.canvas = null;
+app.context = null;
+app.audio = null;
+app.sound_generator = null;
 
 ////////////////////////////////////////////////////////////////
 // midi
 ////////////////////////////////////////////////////////////////
 
+function note2frequency(note) {
+    return utils.ui32(440 * Math.pow(2, (note - 69) / 12));
+}
+
 function midiInputSetup() {
     var ok = false;
-    var input = global.midi_access.inputs.values().next();
+    var input = app.midi_access.inputs.values().next();
     while (input && !(input.done)) {
         input.value.onmidimessage = onMIDIMessage;
         input = input.next;
@@ -76,8 +109,8 @@ function midiInputSetup() {
     }
 }
 function onMIDIAccept(midi) {
-    global.midi_access = midi;
-    global.midi_access.onstatechange = midiInputSetup;
+    app.midi_access = midi;
+    app.midi_access.onstatechange = midiInputSetup;
     midiInputSetup();
     tick.cache = {};
     tick(tick.cache);
@@ -106,31 +139,125 @@ function onMIDIMessage(evt) {
         return;
     }
 }
-function note2frequency(note) {
-    return utils.i32(440 * Math.pow(2, (note - 69) / 12));
-}
 function noteOn(note) {
-    if (utils.contains(global.active_notes, note)) {
+    if (utils.containsElement(app.active_notes, note)) {
         return;
     }
-    if (global.verbose) {
+    if (app.verbose) {
         console.log("Note on: " + note + " - " + note2frequency(note) + "hz");
     }
-    global.active_notes.push(note);
+    app.active_notes.push(note);
     onInput(note);
 }
 function noteOff(note) {
-    if (!(utils.contains(global.active_notes, note))) {
+    if (!utils.containsElement(app.active_notes, note)) {
         return;
     }
-    if (global.verbose) {
+    if (app.verbose) {
         console.log("Note off: " + note + " - " + note2frequency(note) + "hz");
     }
-    var active_notes = global.active_notes;
-    var idx = active_notes.indexOf(note);
+    var idx = app.active_notes.indexOf(note);
     if (idx > -1) {
-        active_notes.splice(idx, 1);
+        app.active_notes.splice(idx, 1);
     }
+}
+
+////////////////////////////////////////////////////////////////
+// misc
+////////////////////////////////////////////////////////////////
+
+function createScale(tonic, mode) {
+    var scale = [app.TONES[tonic]];
+    for (var i = 0; i < app.MODES[mode].length; i++) {
+        var interval = app.MODES[mode][i];
+        scale.push(scale[scale.length - 1] + interval);
+    }
+    return scale;
+}
+
+function createSoundGenerator(ctx) {
+    var speakers = {};
+    var rmbuffer = [];
+    function produceSound(frequency, volume) {
+        var now = app.audio_context.currentTime;
+        var key = frequency.toString() + "hz";
+        if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
+            return;
+        }
+        var onode = ctx.createOscillator();
+        onode.frequency.value = frequency;
+        onode.type = "sine";
+
+        var gnode = ctx.createGain();
+        gnode.gain.value = 0;
+
+        onode.connect(gnode);
+        gnode.connect(ctx.destination);
+
+        speakers[key] = {onode: onode, gnode: gnode};
+        speakers[key].onode.start();
+        speakers[key].gnode.gain.setTargetAtTime(volume, now + 0.01, 0.01);
+    }
+    function destroySound(frequency) {
+        var now = app.audio_context.currentTime;
+        var key = frequency.toString() + "hz";
+        if (speakers.hasOwnProperty(key)) {
+            var speaker = speakers[key];
+            speakers[key] = null;
+            rmbuffer.push(speaker);
+            speaker.gnode.gain.setTargetAtTime(0, now + 0.01, 0.01);
+            setTimeout(function() {
+                rmbuffer[0].onode.stop();
+                rmbuffer.splice(0, 1);
+            }, 1000);
+        }
+    }
+    return {
+        produceSound: produceSound,
+        destroySound: destroySound,
+        speakers: speakers,
+        rmbuffer: rmbuffer,
+    };
+}
+
+function createKeyboardMap(scale, octave) {
+    var kmap = {};
+    var scale = scale.slice();
+    for (var i = 0; i < scale.length; i++) {
+        scale[i] = scale[i] + 12 * octave;
+    }
+    for (var i = 0; i < app.HOME_ROW.length; i++) {
+        var key = app.HOME_ROW[i];
+        var dval = utils.div(i, scale.length - 1);
+        var mval = utils.mod(i, scale.length - 1);
+        kmap[key] = scale[mval] + 12 * dval;
+    }
+    return kmap;
+}
+
+function degree2note(scale, octave, degree) {
+    var aval = scale[utils.mod(degree, scale.length - 1)];
+    var bval = 12 * utils.div(degree, scale.length - 1);
+    var cval = 12 * octave;
+    return aval + bval + cval;
+}
+
+function drawText(ctx, txt, x, y, fColor, sColor, size) {
+    ctx.font = "" + size + "pt Arial";
+    ctx.strokeStyle = sColor;
+    ctx.fillStyle = fColor;
+    ctx.strokeText(txt, x, y);
+    ctx.fillText(txt, x, y);
+}
+
+function drawLine(ctx, x1, y1, x2, y2, width, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.closePath();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -138,30 +265,31 @@ function noteOff(note) {
 ////////////////////////////////////////////////////////////////
 
 function onInput(note) {
-    if (global.targets.length < 1) {
+    if (app.targets.length < 1) {
         onWrongNote();
     }
     else {
-        var target = global.targets[0];
-        var key = global.key;
-        var idx = utils.mod(target.offset, key.length);
-        var delta = 12 * Math.floor(target.offset / key.length) + key[idx];
-        var memento = utils.orElse(global.memento, note - delta);
-        if (memento % 12 === 0 && note === memento + delta) {
-            onRightNote(memento);
+        var target = app.targets[0];
+        var scale = createScale(app.tonic, app.mode);
+        var expected = degree2note(scale, app.octave, target.degree);
+        var observed = note;
+        if (app.verbose) {
+            console.log("Expected: " + expected);
+            console.log("Observed: " + observed);
+        }
+        if (expected === observed) {
+            onRightNote();
         }
         else {
             onWrongNote();
         }
     }
-    function onRightNote(memento) {
-        var target = global.targets[0];
-        global.memento = memento;
-        global.targets.splice(0, 1);
-        global.target_color = "black";
-        global.score += 1;
-        if (global.score > global.best) {
-            global.best = global.score;
+    function onRightNote() {
+        app.targets.splice(0, 1);
+        app.target_color = "black";
+        app.score += 1;
+        if (app.score > app.best) {
+            app.best = app.score;
         }
     }
     function onWrongNote() {
@@ -170,87 +298,71 @@ function onInput(note) {
 }
 
 function oops() {
-        global.memento = null;
-        global.target_color = "red";
-        global.score = Math.max(0, global.score - global.penalty);
+    app.target_color = "red";
+    app.score = Math.max(0, app.score - app.penalty);
 }
 
-function tick(cache) {
-    if (!("tick" in cache)) {
-        cache.tick = tick;
-        cache.frameCounter = 0;
-        cache.targetCounter = 0;
+function tick() {
+    var dt = 1 / app.ticks_per_second;
+    for (var i = 0; i < app.targets.length; i++) {
+        var target = app.targets[i];
+        target.x += app.x_velocity * dt;
+        target.y += app.y_velocity * dt;
     }
-    var dt = 1 / global.ticks_per_second;
-    if (global.mode === "A") {
-        for (var i = 0; i < global.targets.length; i++) {
-            var target = global.targets[i];
-            target.x += global.x_velocity * dt;
-            target.y += global.y_velocity * dt;
-        }
-    }
-    while (global.targets.length > 0 && global.targets[0].x < 0.1) {
-        global.targets.splice(0, 1);
+    while (app.targets.length > 0 && app.targets[0].x < app.edge) {
+        app.targets.splice(0, 1);
         oops();
     }
-    if (cache.frameCounter > 1 / global.frames_per_second) {
+    if (app.frame_counter > 1 / app.frames_per_second) {
         draw();
-        cache.frameCounter = 0;
+        app.frame_counter = 0;
     }
-    var mode = global.mode;
-    if (mode === "A" && cache.targetCounter > 1 / global.targets_per_second) {
-        var offset = requestOffset();
-        if (offset !== null) {
-            global.targets.push({
-                offset: offset,
-                x: 1,
-                y: 0.5 - offset * 0.025,
-            });
+    if (app.target_counter > 1 / app.targets_per_second) {
+        var target = tryCreateTarget();
+        if (target !== null) {
+            app.targets.push(target);
         }
-        cache.targetCounter = 0;
+        app.target_counter = 0;
     }
-    else if (mode === "B" && global.targets.length < 1) {
-        for (var i = 0; i < 8; i++) {
-            var xval = 0.2 + i * 0.1;
-            var offset = requestOffset();
-            if (offset !== null) {
-                global.targets.push({
-                    offset: offset,
-                    x: xval,
-                    y: 0.5 - offset * 0.025,
-                });
-            }
-        }
-    }
-    cache.frameCounter += dt;
-    cache.targetCounter += dt;
+    app.frame_counter += dt;
+    app.target_counter += dt;
     setTimeout(function() {
-        tick(cache);
-    }, 1000 / global.ticks_per_second);
+        tick();
+    }, 1000 / app.ticks_per_second);
 
-    function requestOffset() {
-        var offset = null;
-        if (global.mystery === null) {
-            if (global.pool.length > 0) {
-                var idx = utils.i32(utils.random(null) * global.pool.length);
-                offset = global.pool[idx];
+    function tryCreateTarget() {
+        var degree = null;
+        if (app.mystery === null) {
+            if (app.pool.length > 0) {
+                var idx = utils.i32(utils.random(null) * app.pool.length);
+                degree = app.pool[idx];
             }
         }
         else {
-            for (var i = 0; i < global.mystery.length; i++) {
-                var elt = global.mystery.splice(0, 1)[0];
-                if (utils.contains(global.pool, elt)) {
-                    offset = elt;
+            for (var i = 0; i < app.mystery.length; i++) {
+                var elt = app.mystery.splice(0, 1)[0];
+                if (utils.containsElement(app.pool, elt)) {
+                    degree = elt;
                     break;
                 }
             }
         }
-        return offset;
+        if (degree === null) {
+            return null;
+        }
+        var lut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
+        var yref = 0.5 - lut[app.tonic[0]] * 0.025;
+        return {
+            degree: degree,
+            octave: app.octave,
+            x: 1,
+            y: yref - degree * 0.025,
+        };
     }
 }
 
 function draw() {
-    var cvs = global.canvas;
+    var cvs = app.canvas;
     var ctx = cvs.getContext("2d");
     var xmin = 0;
     var ymin = 0;
@@ -259,6 +371,7 @@ function draw() {
 
     drawLines();
     drawTargets();
+    drawKeySignature();
     drawInfo();
 
     function drawLines() {
@@ -267,62 +380,53 @@ function draw() {
         ctx.fillRect(0, 0, cvs.width, cvs.height);
 
         // border
-        drawLine("black", xmin, ymin, xmin, ymax, false);
-        drawLine("black", xmin, ymin, xmax, ymin, false);
-        drawLine("black", xmax, ymin, xmax, ymax, false);
-        drawLine("black", xmin, ymax, xmax, ymax, false);
+        drawLine(ctx, xmin, ymin, xmin, ymax, 1, "black");
+        drawLine(ctx, xmin, ymin, xmax, ymin, 1, "black");
+        drawLine(ctx, xmax, ymin, xmax, ymax, 1, "black");
+        drawLine(ctx, xmin, ymax, xmax, ymax, 1, "black");
 
         // boundary
-        drawLine("black", 0.1 * xmax, ymin, 0.1 * xmax, ymax, false);
+        drawLine(ctx, app.edge * xmax, ymin, app.edge * xmax, ymax, 1, "black");
 
         // guides
         for (var yprop = 0.1; yprop < 0.95; yprop += 0.05) {
             var yval = yprop * ymax;
-            drawLine("lightGray", 0, yval, xmax, yval, false);
+            drawLine(ctx, 0, yval, xmax, yval, 1, "lightGray");
         }
 
         // staff one
-        if (global.treble) {
-            drawLine("black", 0, 0.25 * ymax, xmax, 0.25 * ymax, true);
-            drawLine("black", 0, 0.3 * ymax, xmax, 0.3 * ymax, true);
-            drawLine("black", 0, 0.35 * ymax, xmax, 0.35 * ymax, true);
-            drawLine("black", 0, 0.4 * ymax, xmax, 0.4 * ymax, true);
-            drawLine("black", 0, 0.45 * ymax, xmax, 0.45 * ymax, true);
+        if (app.treble) {
+            drawLine(ctx, 0, 0.25 * ymax, xmax, 0.25 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.30 * ymax, xmax, 0.30 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.35 * ymax, xmax, 0.35 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.40 * ymax, xmax, 0.40 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.45 * ymax, xmax, 0.45 * ymax, 2, "black");
         }
 
         // staff two
-        if (global.bass) {
-            drawLine("black", 0, 0.55 * ymax, xmax, 0.55 * ymax, true);
-            drawLine("black", 0, 0.6 * ymax, xmax, 0.6 * ymax, true);
-            drawLine("black", 0, 0.65 * ymax, xmax, 0.65 * ymax, true);
-            drawLine("black", 0, 0.7 * ymax, xmax, 0.7 * ymax, true);
-            drawLine("black", 0, 0.75 * ymax, xmax, 0.75 * ymax, true);
-        }
-        function drawLine(color, x1, y1, x2, y2, wide) {
-            ctx.beginPath();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = wide ? 2 : 1;
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-            ctx.closePath();
+        if (app.bass) {
+            drawLine(ctx, 0, 0.55 * ymax, xmax, 0.55 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.60 * ymax, xmax, 0.60 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.65 * ymax, xmax, 0.65 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.70 * ymax, xmax, 0.70 * ymax, 2, "black");
+            drawLine(ctx, 0, 0.75 * ymax, xmax, 0.75 * ymax, 2, "black");
         }
     }
 
     function drawTargets() {
-        for (var i = 0; i < global.targets.length; i++) {
-            var target = global.targets[i];
+        for (var i = 0; i < app.targets.length; i++) {
+            var target = app.targets[i];
             drawTarget(target);
         }
         function drawTarget(target) {
             var xval = target.x * xmax;
             var yval = target.y * ymax;
             var rval = Math.min(
-                global.target_size,
+                app.target_size,
                 xmax * Math.abs(target.x - 0.1)
             );
             ctx.beginPath();
-            ctx.fillStyle = global.target_color;
+            ctx.fillStyle = app.target_color;
             ctx.strokeStyle = "black";
             ctx.arc(xval, yval, rval, 0, 2 * Math.PI, false);
             ctx.fill();
@@ -331,52 +435,108 @@ function draw() {
         }
     }
 
-    function drawInfo() {
+
+    /*\
+    var xlut = {
+        flats: [0.06, 0.04, 0.02, 0.07, 0.05, 0.03, 0.01],
+        sharps: [0.02, 0.04, 0.06, 0.01, 0.03, 0.05, 0.07],
+    };
+    var ylut = {
+        flats: [0.325, 0.3, 0.275, 0.425, 0.4, 0.375, 0.35],
+        sharps: [0.325, 0.3, 0.275, 0.25, 0.225, 0.375, 0.35],
+    };
+    \*/
+    function drawKeySignature() {
+        var wlut = {
+            "C": "ionian",
+            "D": "dorian",
+            "E": "phrygian",
+            "F": "lydian",
+            "G": "mixolydian",
+            "A": "aeolian",
+            "B": "locrian",
+        };
         var xlut = {
-            flats: [0.06, 0.04, 0.02, 0.07, 0.05, 0.03, 0.01],
-            sharps: [0.02, 0.04, 0.06, 0.01, 0.03, 0.05, 0.07],
+            "F#": 0,
+            "C#": 1,
+            "G#": 2,
+            "D#": 3,
+            "A#": 4,
+            "E#": 5,
+            "B#": 6,
+            "Bb": 0,
+            "Eb": 1,
+            "Ab": 2,
+            "Db": 3,
+            "Gb": 4,
+            "Cb": 5,
+            "Fb": 6,
         };
         var ylut = {
-            flats: [0.325, 0.3, 0.275, 0.425, 0.4, 0.375, 0.35],
-            sharps: [0.325, 0.3, 0.275, 0.25, 0.225, 0.375, 0.35],
+            "A#": 5,
+            "B#": 6,
+            "C#": 7,
+            "D#": 8,
+            "E#": 9,
+            "F#": 10,
+            "G#": 11,
+            "Ab": 5,
+            "Bb": 6,
+            "Cb": 7,
+            "Db": 8,
+            "Eb": 9,
+            "Fb": 3,
+            "Gb": 4,
         };
-        var xval = null;
-        var yval = null;
-        var symbol = null;
-        for (var i = 0; i < global.key.length; i++) {
-            symbol = null;
-            if (global.key[i] < MAJOR_KEYS["C"][i]) {
-                symbol = FLAT_CHAR;
-                xval = xlut.flats[i] * xmax;
-                yval = ylut.flats[i] * ymax + 8;
+        var scale = createScale(app.tonic, app.mode);
+        var white = createScale(app.tonic[0], wlut[app.tonic[0]]);
+        var arr = ["C", "D", "E", "F", "G", "A", "B"];
+        var sig = {};
+        for (var i = 0; i < white.length - 1; i++) {
+            var idx = utils.mod(arr.indexOf(app.tonic[0]) + i, arr.length);
+            var key = arr[idx];
+            var expected = degree2note(white, app.octave, i);
+            var observed = degree2note(scale, app.octave, i);
+            if (app.tonic === "Cb") {
+                expected = degree2note(white, app.octave + 1, i);
             }
-            else if (global.key[i] > MAJOR_KEYS["C"][i]) {
-                symbol = SHARP_CHAR;
-                xval = xlut.sharps[i] * xmax;
-                yval = ylut.sharps[i] * ymax + 8;
-            }
-            if (symbol !== null) {
-                drawText(symbol, xval, yval, "black", "black", 16);
+            if (expected !== observed) {
+                var atom = (observed < expected) ? "b" : "#";
+                var symbol = "";
+                for (var j = 0; j < Math.abs(observed - expected); j++) {
+                    symbol += atom;
+                }
+                sig[key] = {
+                    x: xlut[key + atom],
+                    y: ylut[key + atom],
+                    z: symbol,
+                }
             }
         }
 
-        var score = global.score;
-        xval = 0.025 * xmax;
-        yval = 0.025 * ymax;
-        drawText("Points: " + score, xval, yval, "black", "white", 8);
+        var keys = utils.keys(sig);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var xprop = 0.01 + sig[key].x * 0.01;
+            var yprop = 0.5 - sig[key].y * 0.025;
+            var xval = xprop * xmax;
+            var yval = yprop * ymax + 8;
+            var symbol = sig[key].z;
+            symbol = symbol.replace(/[#]/g, app.SHARP_CHAR);
+            symbol = symbol.replace(/[b]/g, app.FLAT_CHAR);
+            drawText(ctx, symbol, xval, yval, "black", "black", 16);
+        }
+    }
 
-        var best = global.best;
+    function drawInfo() {
+        var xval = 0.025 * xmax;
+        var yval = 0.025 * ymax;
+        drawText(ctx, "Points: " + app.score, xval, yval, "black", "white", 8);
+
         xval = 0.025 * xmax;
         yval = 0.05 * ymax;
-        drawText("Record: " + best, xval, yval, "black", "white", 8);
+        drawText(ctx, "Record: " + app.best, xval, yval, "black", "white", 8);
 
-        function drawText(txt, x, y, fColor, sColor, size) {
-            ctx.font = "" + size + "pt Arial";
-            ctx.strokeStyle = sColor;
-            ctx.fillStyle = fColor;
-            ctx.strokeText(txt, x, y);
-            ctx.fillText(txt, x, y);
-        }
     }
 }
 
@@ -385,51 +545,41 @@ function draw() {
 ////////////////////////////////////////////////////////////////
 
 function main(argv) {
-    global.verbose = false;
-    global.key = MAJOR_KEYS["C"];
-    global.mode = "B";
-    global.pool = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
-    global.treble = true;
-    global.bass = true;
-    global.frames_per_second = 60;
-    global.ticks_per_second = 60;
-    global.targets_per_second = 1;
-    global.target_color = "black";
-    global.target_size = 8;
-    global.x_velocity = -0.10;
-    global.y_velocity = 0;
-    global.targets = [];
-    global.mystery = null;
-    global.memento = null;
-    global.score = 0;
-    global.best = 0;
-    global.penalty = 5;
-    global.canvas = document.getElementById("canvas");
-    global.context = null;
-    global.midi_access = null;
-    global.active_notes = [];
-    utils.update(global, utils.uri2data(window.location.href, URI_SUBS));
+    app.canvas = document.getElementById("canvas");
+    app.audio_context = new AudioContext();
+    app.sound_generator = createSoundGenerator(app.audio_context);
+    utils.update(app, utils.uri2data(window.location.href, [
+        ["\"", "Q"],
+        [",", "AND"],
+        [":", "IS"],
+        ["{", "OBJ"],
+        ["}", "JBO"],
+        ["[", "LST"],
+        ["]", "TSL"]
+    ]));
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
     window.addEventListener('load', function() {
-        global.context = new AudioContext();
+        app.context = new AudioContext();
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(onMIDIAccept, onMIDIReject);
         }
         else {
-            alert("MIDI functionality not supported by browser.")
+            alert("Sorry, this browser doesn't seem to support MIDI access.");
         }
     });
     document.onkeydown = function(evt) {
         var keyid = utils.keyEventSourceId(evt);
-        if (KEYBOARD_MAP.hasOwnProperty(keyid)) {
-            var note = KEYBOARD_MAP[keyid];
+        if (app.kmap.hasOwnProperty(keyid)) {
+            var note = app.kmap[keyid];
             noteOn(note);
+            app.sound_generator.produceSound(note2frequency(note), 0.25);
         }
     };
     document.onkeyup = function(evt) {
         var keyid = utils.keyEventSourceId(evt);
-        if (KEYBOARD_MAP.hasOwnProperty(keyid)) {
-            var note = KEYBOARD_MAP[keyid];
+        if (app.kmap.hasOwnProperty(keyid)) {
+            var note = app.kmap[keyid];
+            app.sound_generator.destroySound(note2frequency(note));
             noteOff(note);
         }
     };
