@@ -6,9 +6,93 @@ var utils = (function() {
     var helperc = 0;
     var counter = 0;
     var statics = {
-        seed: null,
         prng: null,
         hideDeprecationMessages: false
+    };
+
+///////////////////////////////////////////////////////////////////////////////
+// archetypes
+///////////////////////////////////////////////////////////////////////////////
+    var prng = {
+        _lowBits: function(arg, n) {
+            var uarg = ui32(arg);
+            var ret = ui32(0);
+            if (n === 32) {
+                ret = ui32(uarg & 0xFFFFFFFF);
+            }
+            else {
+                ret = ui32((ui32(1 << n) - 1) & uarg);
+            }
+            return ret;
+        },
+        _product32: function(lhs, rhs) {
+            var ulhs = ui32(lhs);
+            var urhs = ui32(rhs);
+            var ret = ui32(0);
+            for (var shift = 0; shift < 32; shift += 4) {
+                var nibble = ui32(ulhs * ((urhs >>> shift) & 0xF));
+                ret = ui32(ret + ui32(nibble << shift));
+            }
+            return ret;
+        },
+        seed: function(arg) {
+            this.zval = ui32(arg);
+            this.fval = 1812433253;
+            this.wval = 32;
+            this.nval = 624;
+            this.mval = 397;
+            this.rval = 31;
+            this.aval = 2567483615;
+            this.uval = 11;
+            this.dval = 4294967295;
+            this.sval = 7;
+            this.bval = 2636928640;
+            this.tval = 15;
+            this.cval = 4022730752;
+            this.lval = 18;
+            this.buf = [];
+            this.buf[0] = this.zval;
+            for (var i = 1; i < this.nval; i++) {
+                var product = this._product32(
+                    this.fval,
+                    this.buf[i - 1] ^ (this.buf[i - 1] >>> (this.wval - 2))
+                )
+                var sum = ui32(product + i);
+                this.buf.push(this._lowBits(sum, this.wval));
+            }
+            this.index = this.nval;
+        },
+        random: function() {
+            return ui32(this.randInt32()) * (1.0 / 4294967296.0);
+        },
+        // Mersenne Twister 19937
+        randInt32: function() {
+            if (this.index === this.nval) {
+                var lmask = this._lowBits(-1, this.rval);
+                var hmask = this._lowBits(~lmask, this.wval);
+                for (var i = 0; i < this.nval; i++) {
+                    var x = ui32(0);
+                    x = ui32(x + ui32(this.buf[i] & hmask));
+                    x = ui32(x + ui32(this.buf[(i + 1) % this.nval] & lmask));
+                    var xa = ui32(x >>> 1);
+                    if ((x % 2) !== 0) {
+                        xa = ui32(xa ^ this.aval);
+                    }
+                    this.buf[i] = this.buf[(i + this.mval) % this.nval] ^ xa;
+                    this.buf[i] = ui32(this.buf[i]);
+                }
+                this.index = 0;
+            }
+            // Deliberately signed to avoid unnecessary operations.
+            var y = i32(this.buf[this.index]);
+            y = y ^ ((y >>> this.uval) & this.dval);
+            y = y ^ ((y << this.sval) & this.bval);
+            y = y ^ ((y << this.tval) & this.cval);
+            y = y ^ (y >>> this.lval);
+            this.index += 1;
+            return i32(this._lowBits(y, this.wval));
+
+        },
     };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -254,100 +338,27 @@ var utils = (function() {
 // prng
 ///////////////////////////////////////////////////////////////////////////////
 
+
     function seed(arg) {
-        statics.seed = arg;
-        statics.prng = {};
+        arg = orElse(arg, ui32(Math.random() * 4294967296));
+        statics.prng = Object.create(prng, {});
+        statics.prng.seed(arg);
     }
     counter += 1;
 
-    function random(cache) {
-        if (statics.seed === null) {
-            return Math.random();
+    function random() {
+        if (statics.prng === null) {
+            seed(null);
         }
-        cache = orElse(cache, statics.prng);
-        return ui32(randInt32(cache)) * (1.0 / 4294967296.0);
+        return statics.prng.random();
     }
     counter += 1;
 
-    // Mersenne Twister 19937
     function randInt32(cache) {
-        if (statics.seed === null) {
-            return i32(Math.random() * 2147483648);
+        if (statics.prng === null) {
+            seed(null);
         }
-        cache = orElse(cache, statics.prng);
-        if (!("seed" in cache)) {
-            cache.seed = ui32(statics.seed);
-            cache.fval = 1812433253;
-            cache.wval = 32;
-            cache.nval = 624;
-            cache.mval = 397;
-            cache.rval = 31;
-            cache.aval = 2567483615;
-            cache.uval = 11;
-            cache.dval = 4294967295;
-            cache.sval = 7;
-            cache.bval = 2636928640;
-            cache.tval = 15;
-            cache.cval = 4022730752;
-            cache.lval = 18;
-            cache.buf = [];
-            cache.buf[0] = cache.seed;
-            for (var i = 1; i < cache.nval; i++) {
-                var product = product32(
-                    cache.fval,
-                    cache.buf[i - 1] ^ (cache.buf[i - 1] >>> (cache.wval - 2))
-                )
-                var sum = ui32(product + i);
-                cache.buf.push(lowBits(sum, cache.wval));
-            }
-            cache.index = cache.nval;
-        }
-
-        if (cache.index === cache.nval) {
-            var lmask = lowBits(-1, cache.rval);
-            var hmask = lowBits(~lmask, cache.wval);
-            for (var i = 0; i < cache.nval; i++) {
-                var x = ui32(0);
-                x = ui32(x + ui32(cache.buf[i] & hmask));
-                x = ui32(x + ui32(cache.buf[(i + 1) % cache.nval] & lmask));
-                var xa = ui32(x >>> 1);
-                if ((x % 2) !== 0) {
-                    xa = ui32(xa ^ cache.aval);
-                }
-                cache.buf[i] = ui32(cache.buf[(i + cache.mval) % cache.nval] ^ xa);
-            }
-            cache.index = 0;
-        }
-        // Deliberately signed to avoid unnecessary operations.
-        var y = i32(cache.buf[cache.index]);
-        y = y ^ ((y >>> cache.uval) & cache.dval);
-        y = y ^ ((y << cache.sval) & cache.bval);
-        y = y ^ ((y << cache.tval) & cache.cval);
-        y = y ^ (y >>> cache.lval);
-        cache.index += 1;
-        return i32(lowBits(y, cache.wval));
-
-        function lowBits(arg, n) {
-            var uarg = ui32(arg);
-            var ret = ui32(0);
-            if (n === 32) {
-                ret = ui32(uarg & 0xFFFFFFFF);
-            }
-            else {
-                ret = ui32((ui32(1 << n) - 1) & uarg);
-            }
-            return ret;
-        }
-        function product32(lhs, rhs) {
-            var ulhs = ui32(lhs);
-            var urhs = ui32(rhs);
-            var ret = ui32(0);
-            for (var shift = 0; shift < 32; shift += 4) {
-                var nibble = ui32(ulhs * ((urhs >>> shift) & 0xF));
-                ret = ui32(ret + ui32(nibble << shift));
-            }
-            return ret;
-        }
+        return statics.prng.randInt32();
     }
     counter += 1;
 
@@ -361,8 +372,8 @@ var utils = (function() {
             return tmp * sigma + mu;
         }
         do {
-            u1 = 2.0 * random(null) - 1.0;
-            u2 = 2.0 * random(null) - 1.0;
+            u1 = 2.0 * random() - 1.0;
+            u2 = 2.0 * random() - 1.0;
             tmp = u1 * u1 + u2 * u2;
         } while (tmp === 0 || tmp > 1.0);
 
@@ -375,7 +386,7 @@ var utils = (function() {
     function shuffle(arr) {
         var n, tmp;
         for (var i = arr.length - 1; i > 0; i--) {
-            n = Math.floor(random(null) * (i + 1));
+            n = Math.floor(random() * (i + 1));
             tmp = arr[i];
             arr[i] = arr[n];
             arr[n] = tmp;
