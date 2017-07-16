@@ -222,13 +222,39 @@ var utils = (function() {
     }
     counter += 1;
 
+    function factorial(arg) {
+        var counter = null;
+        var ret = null;
+        var copy = arg;
+        var index = 0;
+        if (!factorial.hasOwnProperty("memo")) {
+            factorial.memo = [1];
+        }
+        while (copy > 1 && index < factorial.memo.length - 1) {
+            index += 1;
+            copy = copy >>> 1;
+        }
+        counter = Math.pow(2, index);
+        ret = factorial.memo[index];
+
+        while (counter < arg) {
+            counter += 1;
+            ret = ret * counter;
+            if (counter === Math.pow(2, factorial.memo.length)) {
+                factorial.memo.push(ret);
+            }
+        }
+        return ret;
+    }
+    counter += 1;
+
     function orElse(arg, dflt) {
         return (arg === null) ? dflt : arg;
     }
     counter += 1;
 
     function setDefault(obj, key, val) {
-        if (!(key in obj)) {
+        if (!obj.hasOwnProperty(key)) {
             obj[key] = val;
         }
         return obj[key];
@@ -279,65 +305,51 @@ var utils = (function() {
     }
     counter += 1;
 
-    helpers.ipermute = function(arr, depth) {
-        var ret = {};
-        var fin = false;
-        var i = 1;
-        var child;
-        var src = null;
-        if (depth < arr.length - 1) {
-            child = helpers.ipermute(arr, depth + 1);
-            ret.next = function() {
-                var nxt = child.next();
-                if (nxt.done) {
-                    if (src !== null) {
-                        var tmp = arr[src];
-                        arr[src] = arr[depth];
-                        arr[depth] = tmp;
-                    }
-                    if (depth + i < arr.length) {
-                        src = depth + i;
-                        var tmp = arr[depth];
-                        arr[depth] = arr[src];
-                        arr[src] = tmp;
-                        child = helpers.ipermute(arr, depth + 1);
-                        nxt = child.next();
-                        i += 1;
-                    }
-                    else {
-                        src = null;
-                        nxt = ITR_END;
-                    }
-                }
-                return nxt;
-            };
+    function permutations(arr) {
+        var copy = null;
+        var counters = [];
+        var count = factorial(arr.length);
+        for (var i = 0; i < arr.length; i++) {
+            counters[i] = i;
         }
-        else {
-            ret.next = function() {
-                if (fin) {
-                    return ITR_END;
-                }
-                else {
-                    fin = true;
-                    return {value: arr, done: false};
-                }
-            };
+        function update(arr, n) {
+            var src = counters[n];
+            var dst = (src > 0) ? src - 1 : n;
+            var buf = (src > 0) ? arr[dst] : arr[src];
+            if (src > 0) {
+                arr[dst] = arr[src];
+                arr[src] = buf;
+            }
+            else {
+                arr.splice(0, 1);
+                arr.splice(dst, 0, buf);
+            }
+            counters[n] -= 1;
+            if (counters[n] < 0) {
+                counters[n] = n;
+                update(arr, n - 1);
+            }
         }
-        return ret;
-    }
-    helperc += 1;
-
-    // TODO: FIXME? Each call to 'next' mutates the object previously returned.
-    function permutations(arr, cache) {
-        var copy = arr.slice(0);
-        return helpers.ipermute(copy, 0);
+        function next() {
+            if (count === 0) {
+                return {value: null, done: true};
+            }
+            if (copy === null) {
+                copy = arr.slice();
+            }
+            else {
+                update(copy, copy.length - 1);
+            }
+            count -= 1;
+            return {value: copy.slice(), done: false};
+        }
+        return {next: next};
     }
     counter += 1;
 
 ///////////////////////////////////////////////////////////////////////////////
 // prng
 ///////////////////////////////////////////////////////////////////////////////
-
 
     function seed(arg) {
         arg = orElse(arg, ui32(Math.random() * 4294967296));
@@ -553,6 +565,7 @@ var utils = (function() {
         cycle: cycle,
         data2uri: data2uri,
         div: div,
+        factorial: factorial,
         forceBool: forceBool,
         forceFloat: forceFloat,
         forceInt: forceInt,
