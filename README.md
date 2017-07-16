@@ -1,2 +1,2 @@
-# esim
-Election simulator.
+# README
+This branch is not used.
