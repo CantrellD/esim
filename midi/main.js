@@ -74,15 +74,15 @@ app.edge = 0.1;
 app.x_velocity = -0.10;
 app.y_velocity = 0;
 app.targets = [];
-app.mystery = null;
+app.queue = null;
 app.score = 0;
 app.best = 0;
 app.penalty = 5;
-app.midi_access = null;
 app.active_notes = [];
 app.frame_counter = 0;
 app.target_counter = 0;
 
+app.midi_access = null;
 app.canvas = null;
 app.context = null;
 app.audio = null;
@@ -243,7 +243,7 @@ function degree2note(scale, octave, degree) {
 }
 
 function drawText(ctx, txt, x, y, fColor, sColor, size) {
-    ctx.font = "" + size + "pt Arial";
+    ctx.font = "" + size.toString() + "pt Arial";
     ctx.strokeStyle = sColor;
     ctx.fillStyle = fColor;
     ctx.strokeText(txt, x, y);
@@ -332,15 +332,15 @@ function tick() {
 
     function tryCreateTarget() {
         var degree = null;
-        if (app.mystery === null) {
+        if (app.queue === null) {
             if (app.pool.length > 0) {
-                var idx = utils.i32(utils.random(null) * app.pool.length);
+                var idx = utils.i32(utils.random() * app.pool.length);
                 degree = app.pool[idx];
             }
         }
         else {
-            for (var i = 0; i < app.mystery.length; i++) {
-                var elt = app.mystery.splice(0, 1)[0];
+            for (var i = 0; i < app.queue.length; i++) {
+                var elt = app.queue.splice(0, 1)[0];
                 if (utils.containsElement(app.pool, elt)) {
                     degree = elt;
                     break;
