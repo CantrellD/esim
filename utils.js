@@ -13,6 +13,7 @@ var utils = (function() {
 ///////////////////////////////////////////////////////////////////////////////
 // archetypes
 ///////////////////////////////////////////////////////////////////////////////
+
     var prng = {
         _lowBits: function(arg, n) {
             var uarg = ui32(arg);
@@ -98,7 +99,7 @@ var utils = (function() {
 ///////////////////////////////////////////////////////////////////////////////
 // cantrips
 ///////////////////////////////////////////////////////////////////////////////
-    helpers.deprecate = function() {
+    function deprecate() {
         var src = (new Error).stack.split("\n")[4].trim();
         if (statics.hideDeprecationMessages) {
             return;
@@ -106,7 +107,7 @@ var utils = (function() {
         statics.hideDeprecationMessages = true;
         console.log("DeprecationWarning(" + src + ")");
     }
-    helperc += 1;
+    counter += 1;
 
     function $(arg) {
         assert(arg.charAt(0) === "#");
@@ -136,9 +137,19 @@ var utils = (function() {
     }
     counter += 1;
 
+    function sum(arr) {
+        var ret = 0;
+        for (var i = 0; i < arr.length; i++) {
+            ret += arr[i];
+        }
+        return ret;
+    }
+    counter += 1;
+
     function assert(invariant) {
         if (!invariant) {
-            var src = (new Error).stack.split("\n")[4].trim();
+            var src = (new Error).stack;
+            //var src = (new Error).stack.split("\n")[4].trim();
             throw "AssertionError (" + src + ")";
         }
     }
@@ -501,9 +512,32 @@ var utils = (function() {
     }
     counter += 1;
 
+    // This resolves the "Unicode Problem" associated with the btoa function.
+    function ab2base64str(arg) {
+        var src = new Uint8Array(arg);
+        var dst = [];
+        for (var i = 0; i < src.length; i++) {
+            dst.push(String.fromCharCode(src[i]));
+        }
+        return btoa(dst.join(""));
+    }
+    counter += 1;
+
+    function base64str2ab(arg) {
+        var src = atob(arg);
+        var buf = new ArrayBuffer(src.length);
+        var dst = new Uint8Array(buf);
+        for (var i = 0; i < src.length; i++) {
+            dst[i] = src.charCodeAt(i);
+        }
+        return buf;
+    }
+    counter += 1;
+
 ///////////////////////////////////////////////////////////////////////////////
 // uri
 ///////////////////////////////////////////////////////////////////////////////
+
     function uriEncode(str, subs) {
         var tmp = str;
         for (var i = subs.length - 1; i >= 0; i--) {
@@ -556,14 +590,21 @@ var utils = (function() {
     }
     counter += 1;
 
+///////////////////////////////////////////////////////////////////////////////
+// zen
+///////////////////////////////////////////////////////////////////////////////
+
     var ret = {
         $: $,
+        ab2base64str: ab2base64str,
         all: all,
         any: any,
         assert: assert,
+        base64str2ab: base64str2ab,
         containsElement: containsElement,
         cycle: cycle,
         data2uri: data2uri,
+        deprecate: deprecate,
         div: div,
         factorial: factorial,
         forceBool: forceBool,
@@ -590,6 +631,7 @@ var utils = (function() {
         setDefault: setDefault,
         shuffle: shuffle,
         strSwap: strSwap,
+        sum: sum,
         ui32: ui32,
         unlessNaN: unlessNaN,
         update: update,

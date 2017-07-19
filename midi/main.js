@@ -43,6 +43,7 @@ app.TONES = {
     "B#": 12,
     "Cb": 11,
 };
+app.MIDDLE = 5;
 app.MODES = {
     ionian:     [2, 2, 1, 2, 2, 2, 1],
     dorian:     [2, 1, 2, 2, 2, 1, 2],
@@ -58,8 +59,8 @@ app.FLAT_CHAR = '\u266D';
 app.verbose = false;
 app.tonic = "C";
 app.mode = "ionian";
-app.octave = 5;
-app.signature = {upper: 4, lower: 4};
+app.transpose = false;
+app.octave = app.MIDDLE;
 app.pool = [0, 1, 2, 3, 4];
 app.kmap = createKeyboardMap(createScale(app.tonic, app.mode), app.octave);
 
@@ -67,26 +68,27 @@ app.treble = true;
 app.bass = true;
 app.frames_per_second = 60;
 app.ticks_per_second = 60;
-app.targets_per_second = 1;
+app.speed = 1.0;
 app.target_color = "black";
-app.target_size = 8;
 app.edge = 0.1;
 app.x_velocity = -0.10;
 app.y_velocity = 0;
 app.targets = [];
-app.queue = null;
+app.qdata = "";
+app.queue = [];
+app.qtime = 0;
 app.score = 0;
 app.best = 0;
 app.penalty = 5;
 app.active_notes = [];
 app.frame_counter = 0;
-app.target_counter = 0;
 
-app.midi_access = null;
-app.canvas = null;
-app.context = null;
-app.audio = null;
-app.sound_generator = null;
+var wtf = {};
+wtf.midi_access = null;
+wtf.canvas = null;
+wtf.context = null;
+wtf.audio = null;
+wtf.sound_generator = null;
 
 ////////////////////////////////////////////////////////////////
 // midi
@@ -98,7 +100,7 @@ function note2frequency(note) {
 
 function midiInputSetup() {
     var ok = false;
-    var input = app.midi_access.inputs.values().next();
+    var input = wtf.midi_access.inputs.values().next();
     while (input && !(input.done)) {
         input.value.onmidimessage = onMIDIMessage;
         input = input.next;
@@ -109,8 +111,8 @@ function midiInputSetup() {
     }
 }
 function onMIDIAccept(midi) {
-    app.midi_access = midi;
-    app.midi_access.onstatechange = midiInputSetup;
+    wtf.midi_access = midi;
+    wtf.midi_access.onstatechange = midiInputSetup;
     midiInputSetup();
     tick.cache = {};
     tick(tick.cache);
@@ -162,6 +164,174 @@ function noteOff(note) {
     }
 }
 
+function midi2object(arr) {
+    var index = 0;
+
+    function ui32(arg) {
+        return utils.ui32(arg);
+    }
+
+    function parseVariableLengthValue() {
+        var value = 0;
+        while (ui32(arr[index] & 0x80) > 0) {
+            value = ui32(value << 7) + ui32(arr[index++] & 0x7F);
+        }
+        value = ui32(value << 7) + ui32(arr[index++] & 0x7F);
+        utils.assert(value < ui32(0x10000000));
+        return value;
+    }
+
+    function parseFile() {
+        var header = {
+            chunk_id: "",
+            chunk_size: 0,
+            chunk_offset: null,
+            format_type: 0,
+            number_of_tracks: 0,
+            time_division: 0,
+        };
+        var tracks = [];
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        utils.assert(header.chunk_id === "MThd");
+        header.chunk_size += ui32(arr[index++] << 24);
+        header.chunk_size += ui32(arr[index++] << 16);
+        header.chunk_size += ui32(arr[index++] << 8);
+        header.chunk_size += ui32(arr[index++] << 0);
+        header.chunk_offset = index;
+        header.format_type += ui32(arr[index++] << 8);
+        header.format_type += ui32(arr[index++] << 0);
+        header.number_of_tracks += ui32(arr[index++] << 8);
+        header.number_of_tracks += ui32(arr[index++] << 0);
+        header.time_division += ui32(arr[index++] << 8);
+        header.time_division += ui32(arr[index++] << 0);
+        for (var i = 0; i < header.number_of_tracks; i++) {
+            tracks.push(parseTrack());
+        }
+        utils.assert(index === arr.length);
+        return {header: header, tracks: tracks};
+    }
+
+    function parseTrack() {
+        var header = {
+            chunk_id: "",
+            chunk_size: 0,
+            chunk_offset: null,
+        };
+        var events = [];
+        var buffer = null;
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_id += String.fromCharCode(arr[index++]);
+        header.chunk_size += ui32(arr[index++] << 24);
+        header.chunk_size += ui32(arr[index++] << 16);
+        header.chunk_size += ui32(arr[index++] << 8);
+        header.chunk_size += ui32(arr[index++] << 0);
+        header.chunk_offset = index;
+        if (header.chunk_id === "MTrk") {
+            while (index < header.chunk_offset + header.chunk_size) {
+                buffer = parseEvents();
+                for (var i = 0; i < buffer.length; i++) {
+                    events.push(buffer[i]);
+                }
+            }
+            utils.assert(index === header.chunk_offset + header.chunk_size);
+        }
+        else {
+            index = header.chunk_offset + header.chunk_size;
+        }
+        return {header: header, events: events};
+    }
+
+    function parseEvents() {
+        var events = [];
+        var delta = parseVariableLengthValue();
+        var type = ui32(arr[index++]);
+        var parameters = null;
+        utils.assert(-1 < type && type < 256);
+        utils.assert(ui32(type & 0x80) > 0);
+        if (ui32(type & 0xF0) === 0xF0) {
+            parameters = [];
+            if (type === 0xF0) {
+                while (index < arr.length && arr[index] !== 0xF7) {
+                    parameters.push(arr[index++]);
+                }
+                utils.assert(index < arr.length && arr[index] === 0xF7);
+                parameters.push(arr[index++]);
+            }
+            else if (type === 0xF1) {
+                parameters.push(arr[index++]);
+            }
+            else if (type === 0xF2) {
+                parameters.push(arr[index++]);
+                parameters.push(arr[index++]);
+            }
+            else if (type === 0xF3) {
+                parameters.push(arr[index++]);
+            }
+            else if (type === 0xFF) {
+                parameters.push(arr[index++]);
+                parameters.push(arr[index++]);
+                for (var i = 0; i < parameters[1]; i++) {
+                    parameters.push(arr[index++]);
+                }
+            }
+            events.push({
+                delta: delta,
+                type: type,
+                parameters: parameters,
+                hint: null,
+                channel: null,
+            });
+        }
+        else {
+            // Running Status allows multiple events per status byte.
+            // TODO: Verify that MIDI files don't use real-time messages.
+            // Real-time messages should not terminate this loop! FIXME?
+            while (true) {
+                if (ui32(arr[index] & 0x80) > 0) {
+                    break;
+                }
+                if (ui32(arr[index + 1] & 0x80) > 0) {
+                    break;
+                }
+                parameters = [];
+                if (ui32(type & 0xF0) === 0xC0) {
+                    parameters.push(arr[index++]);
+                }
+                else if (ui32(type & 0xF0) === 0xD0) {
+                    parameters.push(arr[index++]);
+                }
+                else {
+                    parameters.push(arr[index++]);
+                    parameters.push(arr[index++]);
+                }
+                events.push({
+                    delta: delta,
+                    type: type,
+                    parameters: parameters,
+                    hint: {
+                        "0x80": "Note Off",
+                        "0x90": "Note On",
+                        "0xA0": "Polyphonic Key Pressure (Aftertouch)",
+                        "0xB0": "Control Change",
+                        "0xC0": "Program Change",
+                        "0xD0": "Channel Pressure (Aftertouch)",
+                        "0xE0": "Pitch Bend Change",
+                    }["0x" + ui32(type & 0xF0).toString(16).toUpperCase()],
+                    channel: ui32(type & 0x0F),
+                });
+            }
+        }
+        return events;
+    }
+    return parseFile();
+}
+
+
 ////////////////////////////////////////////////////////////////
 // misc
 ////////////////////////////////////////////////////////////////
@@ -179,7 +349,7 @@ function createSoundGenerator(ctx) {
     var speakers = {};
     var rmbuffer = [];
     function produceSound(frequency, volume) {
-        var now = app.audio_context.currentTime;
+        var now = wtf.audio_context.currentTime;
         var key = frequency.toString() + "hz";
         if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
             return;
@@ -199,22 +369,33 @@ function createSoundGenerator(ctx) {
         speakers[key].gnode.gain.setTargetAtTime(volume, now + 0.01, 0.01);
     }
     function destroySound(frequency) {
-        var now = app.audio_context.currentTime;
+        var now = wtf.audio_context.currentTime;
         var key = frequency.toString() + "hz";
-        if (speakers.hasOwnProperty(key)) {
+        if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
             var speaker = speakers[key];
             speakers[key] = null;
             rmbuffer.push(speaker);
             speaker.gnode.gain.setTargetAtTime(0, now + 0.01, 0.01);
             setTimeout(function() {
-                rmbuffer[0].onode.stop();
-                rmbuffer.splice(0, 1);
-            }, 1000);
+                rmbuffer.shift().onode.stop();
+            }, 100);
+        }
+    }
+    function clear() {
+        var keys = utils.keys(speakers);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var speaker = speakers[key];
+            if (speaker !== null) {
+                var frequency = speaker.onode.frequency.value;
+                destroySound(frequency);
+            }
         }
     }
     return {
         produceSound: produceSound,
         destroySound: destroySound,
+        clear: clear,
         speakers: speakers,
         rmbuffer: rmbuffer,
     };
@@ -236,10 +417,34 @@ function createKeyboardMap(scale, octave) {
 }
 
 function degree2note(scale, octave, degree) {
-    var aval = scale[utils.mod(degree, scale.length - 1)];
-    var bval = 12 * utils.div(degree, scale.length - 1);
-    var cval = 12 * octave;
-    return aval + bval + cval;
+    var aval = 0;
+    while (degree < 0) {
+        degree += (scale.length - 1);
+        aval -= 12;
+    }
+    var bval = 12 * octave;
+    var cval = 12 * utils.div(degree, scale.length - 1);
+    var dval = scale[utils.mod(degree, scale.length - 1)];
+    return aval + bval + cval + dval;
+}
+
+// Accidentals don't really translate to any single degree on a diatonic scale.
+function note2degrees(scale, octave, note) {
+    var aval = 0;
+    while (note < (12 * octave) + scale[0]) {
+        note += 12;
+        aval -= (scale.length - 1);
+    }
+    var bval = 0;
+    while (degree2note(scale, octave, bval) < note) {
+        bval += 1;
+    }
+    if (degree2note(scale, octave, bval) === note) {
+        return [aval + bval];
+    }
+    else {
+        return [aval + bval - 1, aval + bval];
+    }
 }
 
 function drawText(ctx, txt, x, y, fColor, sColor, size) {
@@ -285,7 +490,7 @@ function onInput(note) {
         }
     }
     function onRightNote() {
-        app.targets.splice(0, 1);
+        app.targets.shift();
         app.target_color = "black";
         app.score += 1;
         if (app.score > app.best) {
@@ -303,66 +508,52 @@ function oops() {
 }
 
 function tick() {
-    var dt = 1 / app.ticks_per_second;
+    var dt = app.speed * (1 / app.ticks_per_second);
+    if (app.queue.length > 0) {
+        app.qtime += dt;
+        while (app.queue.length > 0 && app.queue[0].timestamp < app.qtime) {
+            app.targets.push(app.queue.shift());
+        }
+        if (app.queue.length < 1) {
+            app.qtime = null;
+        }
+    }
     for (var i = 0; i < app.targets.length; i++) {
         var target = app.targets[i];
         target.x += app.x_velocity * dt;
         target.y += app.y_velocity * dt;
     }
     while (app.targets.length > 0 && app.targets[0].x < app.edge) {
-        app.targets.splice(0, 1);
+        var miss = app.targets.shift();
+        var scale = createScale(app.tonic, app.mode);
+        var octave = app.transpose ? app.octave : miss.octave;
+        var note = degree2note(scale, octave, miss.degree);
+        var frequency = note2frequency(note + miss.accidental);
+        if (miss.type === "Note On") {
+            wtf.sound_generator.produceSound(frequency, 0.25);
+        }
+        else if (miss.type === "Note Off") {
+            wtf.sound_generator.destroySound(frequency);
+        }
+        else if (miss.type === "Key Signature" && app.transpose === false) {
+            app.tonic = miss.tonic;
+            app.mode = miss.mode;
+        }
         oops();
     }
     if (app.frame_counter > 1 / app.frames_per_second) {
         draw();
         app.frame_counter = 0;
     }
-    if (app.target_counter > 1 / app.targets_per_second) {
-        var target = tryCreateTarget();
-        if (target !== null) {
-            app.targets.push(target);
-        }
-        app.target_counter = 0;
-    }
     app.frame_counter += dt;
-    app.target_counter += dt;
     setTimeout(function() {
         tick();
     }, 1000 / app.ticks_per_second);
 
-    function tryCreateTarget() {
-        var degree = null;
-        if (app.queue === null) {
-            if (app.pool.length > 0) {
-                var idx = utils.i32(utils.random() * app.pool.length);
-                degree = app.pool[idx];
-            }
-        }
-        else {
-            for (var i = 0; i < app.queue.length; i++) {
-                var elt = app.queue.splice(0, 1)[0];
-                if (utils.containsElement(app.pool, elt)) {
-                    degree = elt;
-                    break;
-                }
-            }
-        }
-        if (degree === null) {
-            return null;
-        }
-        var lut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
-        var yref = 0.5 - lut[app.tonic[0]] * 0.025;
-        return {
-            degree: degree,
-            octave: app.octave,
-            x: 1,
-            y: yref - degree * 0.025,
-        };
-    }
 }
 
 function draw() {
-    var cvs = app.canvas;
+    var cvs = wtf.canvas;
     var ctx = cvs.getContext("2d");
     var xmin = 0;
     var ymin = 0;
@@ -385,7 +576,7 @@ function draw() {
         drawLine(ctx, xmax, ymin, xmax, ymax, 1, "black");
         drawLine(ctx, xmin, ymax, xmax, ymax, 1, "black");
 
-        // boundary
+        // boundaries
         drawLine(ctx, app.edge * xmax, ymin, app.edge * xmax, ymax, 1, "black");
 
         // guides
@@ -419,16 +610,25 @@ function draw() {
             drawTarget(target);
         }
         function drawTarget(target) {
-            var xval = target.x * xmax;
-            var yval = target.y * ymax;
-            var rval = Math.min(
-                app.target_size,
-                xmax * Math.abs(target.x - 0.1)
-            );
+            var wval = 0.01 * xmax;
+            var hval = 0.05 * ymax;
+            var xval = (target.x * xmax) - (wval / 2.0);
+            var yval = (target.y * ymax) - (hval / 2.0);
+            if (target.accidental !== 0) {
+                hval /= 2.0;
+                yval += target.accidental * hval;
+            }
+
             ctx.beginPath();
             ctx.fillStyle = app.target_color;
             ctx.strokeStyle = "black";
-            ctx.arc(xval, yval, rval, 0, 2 * Math.PI, false);
+            if (target.type === "Note On") {
+                utils.assert(-2 < target.accidental && target.accidental < 2);
+                ctx.fillRect(xval, yval, wval, hval);
+            }
+            else if (target.type === "Key Signature") {
+                drawLine(ctx, target.x * xmax, 0, target.x * xmax, ymax);
+            }
             ctx.fill();
             ctx.stroke();
             ctx.closePath();
@@ -495,13 +695,13 @@ function draw() {
         for (var i = 0; i < white.length - 1; i++) {
             var idx = utils.mod(arr.indexOf(app.tonic[0]) + i, arr.length);
             var key = arr[idx];
-            var expected = degree2note(white, app.octave, i);
-            var observed = degree2note(scale, app.octave, i);
+            var expected = degree2note(white, app.MIDDLE, i);
+            var observed = degree2note(scale, app.MIDDLE, i);
             if (app.tonic === "Cb") {
-                expected = degree2note(white, app.octave + 1, i);
+                expected = degree2note(white, app.MIDDLE + 1, i);
             }
             if (expected !== observed) {
-                var atom = (observed < expected) ? "b" : "#";
+                var atom = observed < expected ? "b" : "#";
                 var symbol = "";
                 for (var j = 0; j < Math.abs(observed - expected); j++) {
                     symbol += atom;
@@ -545,26 +745,20 @@ function draw() {
 ////////////////////////////////////////////////////////////////
 
 function main(argv) {
-    app.canvas = document.getElementById("canvas");
-    app.audio_context = new AudioContext();
-    app.sound_generator = createSoundGenerator(app.audio_context);
-    utils.update(app, utils.uri2data(window.location.href, [
-        ["\"", "Q"],
-        [",", "AND"],
-        [":", "IS"],
-        ["{", "OBJ"],
-        ["}", "JBO"],
-        ["[", "LST"],
-        ["]", "TSL"]
-    ]));
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    wtf.canvas = document.getElementById("canvas");
+    wtf.audio_context = new AudioContext();
+    wtf.sound_generator = createSoundGenerator(wtf.audio_context);
+    utils.update(app, utils.uri2data(window.location.href, []));
     window.addEventListener('load', function() {
-        app.context = new AudioContext();
-        if (navigator.requestMIDIAccess) {
-            navigator.requestMIDIAccess().then(onMIDIAccept, onMIDIReject);
-        }
-        else {
-            alert("Sorry, this browser doesn't seem to support MIDI access.");
+        if (wtf.context === null) {
+            wtf.context = new AudioContext();
+            if (navigator.requestMIDIAccess) {
+                navigator.requestMIDIAccess().then(onMIDIAccept, onMIDIReject);
+            }
+            else {
+                alert("Sorry, this page probably won't work in your browser.");
+            }
         }
     });
     document.onkeydown = function(evt) {
@@ -572,15 +766,191 @@ function main(argv) {
         if (app.kmap.hasOwnProperty(keyid)) {
             var note = app.kmap[keyid];
             noteOn(note);
-            app.sound_generator.produceSound(note2frequency(note), 0.25);
+            wtf.sound_generator.produceSound(note2frequency(note), 0.25);
         }
     };
     document.onkeyup = function(evt) {
         var keyid = utils.keyEventSourceId(evt);
         if (app.kmap.hasOwnProperty(keyid)) {
             var note = app.kmap[keyid];
-            app.sound_generator.destroySound(note2frequency(note));
+            wtf.sound_generator.destroySound(note2frequency(note));
             noteOff(note);
         }
     };
+    document.getElementById("fsrc").onchange = function(evt) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            app.qdata = utils.ab2base64str(evt.target.result);
+        };
+        reader.readAsArrayBuffer(evt.target.files[0]);
+    };
+    document.getElementById("ibtn").onclick = function() {
+        if (app.qdata === "") {
+            alert("Please choose a MIDI file.");
+            return;
+        }
+        var scale = createScale(app.tonic, app.mode);
+        var buf = utils.base64str2ab(app.qdata);
+        var src = new Uint8Array(buf);
+        app.queue.length = 0;
+        app.targets.length = 0;
+        app.qtime = 0.0;
+        app.score = 0;
+        wtf.sound_generator.clear();
+        buildQueue(midi2object(src));
+    }
+
+    function buildQueue(midi) {
+        var timeline = createTimeline(midi);
+        var scale = createScale(app.tonic, app.mode);
+        for (var i = 0; i < timeline.length; i++) {
+            var evt = timeline[i];
+            var targets = createTargets(evt, scale);
+            for (var j = 0; j < targets.length; j++) {
+                var target = targets[j];
+                if (target.type === "Key Signature") {
+                    scale = createScale(target.tonic, target.mode);
+                }
+                app.queue.push(target);
+            }
+        }
+    }
+
+    function createTimeline(midi) {
+        var arr = [];
+
+        var interpreter = null;
+        if ((midi.header.time_division & 0x8000) === 0) {
+            interpreter = {
+                type: 0,
+                ticks_per_beat: midi.header.time_division,
+                beats_per_second: 2, // 120 beats per minute is the default.
+                ticks2seconds: function(ts) {
+                    return ts / (this.ticks_per_beat * this.beats_per_second);
+                },
+            };
+        }
+        else {
+            interpreter = {
+                type: 1,
+                ticks_per_frame: midi.header.time_division & 0x00FF,
+                frames_per_second: midi.header.time_division & 0x7F00,
+                ticks2seconds: function(ts) {
+                    return ts / (this.ticks_per_frame * this.frames_per_second);
+                },
+            };
+            if (interpreter.frames_per_second === 29) {
+                interpreter.frames_per_second = 29.97; // By definition.
+            }
+        }
+
+        var tvals = [];
+        var ivals = [];
+        for (var i = 0; i < midi.tracks.length; i++) {
+            tvals.push(0);
+            ivals.push(0);
+        }
+        var candidates = [];
+        function tryAddNextCandidateFrom(idx) {
+            var track = midi.tracks[idx];
+            var events = track.events;
+            if (ivals[idx] < events.length) {
+                var evt = events[ivals[idx]++];
+                tvals[idx] += interpreter.ticks2seconds(evt.delta);
+                candidates.push({track_idx: idx, time: tvals[idx], evt: evt});
+                utils.insertionSort(candidates, function(lhs, rhs) {
+                    return lhs.time - rhs.time;
+                });
+            }
+        }
+
+        for (var i = 0; i < midi.tracks.length; i++) {
+            tryAddNextCandidateFrom(i);
+        }
+        while (candidates.length > 0) {
+            var val = candidates.shift();
+            var evt = val.evt;
+            arr.push({
+                timestamp: val.time,
+                type: evt.type,
+                parameters: evt.parameters,
+                hint: evt.hint,
+                target_channel: evt.channel,
+                source_track: val.track_idx,
+            });
+            if (evt.type === 0xFF && evt.parameters[0] === 0x51) {
+                var seconds_per_micro = 0.000001
+                var micros_per_beat = 0.0;
+                var seconds_per_beat = null;
+                for (var i = 0; i < evt.parameters[1]; i++) {
+                    micros_per_beat = utils.ui32(micros_per_beat << 8);
+                    micros_per_beat += evt.parameters[2 + i];
+                }
+                seconds_per_beat = seconds_per_micro * micros_per_beat;
+                interpreter.beats_per_second = (1.0 / seconds_per_beat);
+            }
+            tryAddNextCandidateFrom(val.track_idx);
+        }
+
+        // The array should be sorted already, so in theory this is fast.
+        utils.insertionSort(arr, function(lhs, rhs) {
+            return lhs.timestamp - rhs.timestamp;
+        });
+        return arr;
+    }
+
+    function createTargets(evt, scale) {
+        if (evt.type === 0xFF && evt.parameters[0] === 0x59) {
+            var smajor = ["C", "G", "D", "A", "E", "B", "F#", "C#"];
+            var fmajor = ["Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F", "C"];
+            var sminor = ["A", "E", "B", "F#", "C#", "G#", "D#", "A#"];
+            var fminor = ["Ab", "Eb", "Bb", "F", "C", "G", "D", "A"];
+            var mval = evt.parameters[3];
+            var tval = evt.parameters[2];
+            utils.assert(evt.parameters[1] === 2);
+            utils.assert(mval === 0 || mval === 1);
+            var tonic, mode;
+            if (mval === 0) {
+                mode = "ionian";
+                tonic = tval & 0x80 ? fmajor[(tval + 7) & 0xFF] : smajor[tval];
+            }
+            else if (mval === 1) {
+                mode = "aeolian";
+                tonic = tval & 0x80 ? fminor[(tval + 7) & 0xFF] : sminor[tval];
+            }
+            return [{
+                timestamp: evt.timestamp,
+                type: "Key Signature",
+                mode: mode,
+                tonic: tonic,
+                x: 1,
+            }];
+        }
+        if (evt.hint !== "Note On" && evt.hint !== "Note Off") {
+            return [];
+        }
+        var note = evt.parameters[0];
+        var velocity = evt.parameters[1];
+        var octave = app.MIDDLE;
+        var degrees = note2degrees(scale, octave, note);
+        var lut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
+        var yref = 0.5;
+        yref -= lut[app.tonic[0]] * 0.025;
+        yref += (scale.length - 1) * app.MIDDLE * 0.025;
+        var targets = [];
+        for (var i = 0; i < degrees.length; i++) {
+            var degree = degrees[i];
+            var accidental = note - degree2note(scale, octave, degree);
+            targets.push({
+                timestamp: evt.timestamp,
+                type: (velocity === 0 ? "Note Off" : evt.hint),
+                degree: degree,
+                accidental: accidental,
+                octave: octave,
+                x: 1,
+                y: yref - (degree + (scale.length - 1) * octave) * 0.025,
+            });
+        }
+        return targets;
+    }
 }
