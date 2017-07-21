@@ -687,7 +687,7 @@ function draw() {
         function target2yprop(target) {
             var dlut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
             var ds = 0;
-            ds += app.DEGREES_PER_OCTAVE * (app.octave - app.MIDDLE_OCTAVE);
+            ds += app.DEGREES_PER_OCTAVE * (target.octave - app.MIDDLE_OCTAVE);
             ds += dlut[target.tonic[0]];
             ds += target.degree;
             if (target.accidental !== 0) {
