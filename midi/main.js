@@ -6,19 +6,37 @@
 
 var app = {};
 app.HOME_ROW = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "Enter"];
-app.DEBUG_KEYBOARD_MAP = {
-    "a": 69,
+app.DEFAULT_KEYBOARD_MAP = {
+    "q": 80,
+    "w": 81,
+    "e": 82,
+    "r": 83,
+    "t": 84,
+    "y": 85,
+    "u": 86,
+    "i": 87,
+    "o": 88,
+    "p": 89,
+    "a": 70,
     "s": 71,
     "d": 72,
-    "f": 74,
-    "g": 76,
-    "h": 77,
-    "j": 79,
-    "k": 81,
-    "l": 83,
-    ";": 84,
-    "'": 86,
-    "Enter": 88,
+    "f": 73,
+    "g": 74,
+    "h": 75,
+    "j": 76,
+    "k": 77,
+    "l": 78,
+    ";": 79,
+    "z": 60,
+    "x": 61,
+    "c": 62,
+    "v": 63,
+    "b": 64,
+    "n": 65,
+    "m": 66,
+    ",": 67,
+    ".": 68,
+    "/": 69,
 };
 app.TONES = {
     "C": 0,
@@ -43,7 +61,8 @@ app.TONES = {
     "B#": 12,
     "Cb": 11,
 };
-app.MIDDLE = 5;
+app.MIDDLE_OCTAVE = 5;
+app.DEGREES_PER_OCTAVE = 7;
 app.MODES = {
     ionian:     [2, 2, 1, 2, 2, 2, 1],
     dorian:     [2, 1, 2, 2, 2, 1, 2],
@@ -59,27 +78,29 @@ app.FLAT_CHAR = '\u266D';
 app.verbose = false;
 app.tonic = "C";
 app.mode = "ionian";
+app.octave = app.MIDDLE_OCTAVE;
 app.transpose = false;
-app.octave = app.MIDDLE;
 app.pool = [0, 1, 2, 3, 4];
-app.kmap = createKeyboardMap(createScale(app.tonic, app.mode), app.octave);
+app.kmap = app.DEFAULT_KEYBOARD_MAP;
 
+app.magic = true;
 app.treble = true;
 app.bass = true;
-app.frames_per_second = 60;
+app.frames_per_second = 120;
 app.ticks_per_second = 60;
 app.speed = 1.0;
 app.target_color = "black";
 app.edge = 0.1;
+app.anvil = 0.14;
+app.hammer = 0.16;
 app.x_velocity = -0.10;
-app.y_velocity = 0;
 app.targets = [];
 app.qdata = "";
 app.queue = [];
 app.qtime = 0;
 app.score = 0;
-app.best = 0;
-app.penalty = 5;
+app.badge = 0;
+app.bonus = 0;
 app.active_notes = [];
 app.frame_counter = 0;
 
@@ -89,6 +110,7 @@ wtf.canvas = null;
 wtf.context = null;
 wtf.audio = null;
 wtf.sound_generator = null;
+
 
 ////////////////////////////////////////////////////////////////
 // midi
@@ -141,22 +163,18 @@ function onMIDIMessage(evt) {
         return;
     }
 }
+
 function noteOn(note) {
     if (utils.containsElement(app.active_notes, note)) {
         return;
     }
-    if (app.verbose) {
-        console.log("Note on: " + note + " - " + note2frequency(note) + "hz");
-    }
     app.active_notes.push(note);
     onInput(note);
 }
+
 function noteOff(note) {
     if (!utils.containsElement(app.active_notes, note)) {
         return;
-    }
-    if (app.verbose) {
-        console.log("Note off: " + note + " - " + note2frequency(note) + "hz");
     }
     var idx = app.active_notes.indexOf(note);
     if (idx > -1) {
@@ -401,16 +419,16 @@ function createSoundGenerator(ctx) {
     };
 }
 
-function createKeyboardMap(scale, octave) {
+function createKeyboardMap(keys, scale, octave) {
     var kmap = {};
     var scale = scale.slice();
     for (var i = 0; i < scale.length; i++) {
         scale[i] = scale[i] + 12 * octave;
     }
-    for (var i = 0; i < app.HOME_ROW.length; i++) {
-        var key = app.HOME_ROW[i];
-        var dval = utils.div(i, scale.length - 1);
-        var mval = utils.mod(i, scale.length - 1);
+    for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var dval = utils.div(i, app.DEGREES_PER_OCTAVE);
+        var mval = utils.mod(i, app.DEGREES_PER_OCTAVE);
         kmap[key] = scale[mval] + 12 * dval;
     }
     return kmap;
@@ -419,12 +437,12 @@ function createKeyboardMap(scale, octave) {
 function degree2note(scale, octave, degree) {
     var aval = 0;
     while (degree < 0) {
-        degree += (scale.length - 1);
+        degree += app.DEGREES_PER_OCTAVE;
         aval -= 12;
     }
     var bval = 12 * octave;
-    var cval = 12 * utils.div(degree, scale.length - 1);
-    var dval = scale[utils.mod(degree, scale.length - 1)];
+    var cval = 12 * utils.div(degree, app.DEGREES_PER_OCTAVE);
+    var dval = scale[utils.mod(degree, app.DEGREES_PER_OCTAVE)];
     return aval + bval + cval + dval;
 }
 
@@ -433,7 +451,7 @@ function note2degrees(scale, octave, note) {
     var aval = 0;
     while (note < (12 * octave) + scale[0]) {
         note += 12;
-        aval -= (scale.length - 1);
+        aval -= app.DEGREES_PER_OCTAVE;
     }
     var bval = 0;
     while (degree2note(scale, octave, bval) < note) {
@@ -470,77 +488,92 @@ function drawLine(ctx, x1, y1, x2, y2, width, color) {
 ////////////////////////////////////////////////////////////////
 
 function onInput(note) {
-    if (app.targets.length < 1) {
-        onWrongNote();
+    if (app.verbose) {
+        console.log("================");
+        console.log("Note:" + note + " - " + note2frequency(note) + "hz");
     }
-    else {
-        var target = app.targets[0];
+    for (var i = 0; i < app.targets.length; i++) {
+        var target = app.targets[i];
+        if (target.x > app.hammer) {
+            break;
+        }
+        if (target.x < app.anvil || target.type !== "Note On") {
+            continue;
+        }
         var scale = createScale(app.tonic, app.mode);
         var expected = degree2note(scale, app.octave, target.degree);
         var observed = note;
         if (app.verbose) {
+            console.log("Comparing notes...");
             console.log("Expected: " + expected);
             console.log("Observed: " + observed);
         }
         if (expected === observed) {
+            app.targets.splice(i, 1);
             onRightNote();
         }
-        else {
-            onWrongNote();
-        }
     }
-    function onRightNote() {
-        app.targets.shift();
-        app.target_color = "black";
-        app.score += 1;
-        if (app.score > app.best) {
-            app.best = app.score;
-        }
-    }
-    function onWrongNote() {
-        oops();
-    }
-}
 
-function oops() {
-    app.target_color = "red";
-    app.score = Math.max(0, app.score - app.penalty);
+    function onRightNote() {
+        app.score += 1;
+        app.score += app.bonus;
+        app.bonus += 1;
+        if (app.score > app.badge) {
+            app.badge = app.score;
+        }
+    }
 }
 
 function tick() {
     var dt = app.speed * (1 / app.ticks_per_second);
+
+    // Create targets.
     if (app.queue.length > 0) {
         app.qtime += dt;
         while (app.queue.length > 0 && app.queue[0].timestamp < app.qtime) {
             app.targets.push(app.queue.shift());
         }
-        if (app.queue.length < 1) {
-            app.qtime = null;
-        }
     }
+
+    // Process targets.
     for (var i = 0; i < app.targets.length; i++) {
         var target = app.targets[i];
         target.x += app.x_velocity * dt;
-        target.y += app.y_velocity * dt;
+        if (target.x > app.anvil) {
+            continue;
+        }
+        if (target.type === "Key Signature") {
+            app.tonic = app.transpose ? app.tonic : target.tonic;
+            app.mode = app.transpose ? app.mode : target.mode;
+            app.targets.splice(i, 1);
+        }
+        else if (target.type === "Note On" || target.type === "Note Off") {
+            app.octave = app.transpose ? app.octave : target.octave;
+        }
     }
+
+    // Magic.
+    if (app.magic) {
+        while (app.targets.length > 0 && app.targets[0].x < app.anvil) {
+            var target = app.targets.shift();
+            var scale = createScale(app.tonic, app.mode);
+            var note = degree2note(scale, app.octave, target.degree);
+            var frequency = note2frequency(note);
+            if (target.type === "Note On") {
+                wtf.sound_generator.produceSound(frequency, 0.25);
+            }
+            else if (target.type === "Note Off") {
+                wtf.sound_generator.destroySound(frequency);
+            }
+        }
+    }
+
+    // Destroy targets.
     while (app.targets.length > 0 && app.targets[0].x < app.edge) {
-        var miss = app.targets.shift();
-        var scale = createScale(app.tonic, app.mode);
-        var octave = app.transpose ? app.octave : miss.octave;
-        var note = degree2note(scale, octave, miss.degree);
-        var frequency = note2frequency(note + miss.accidental);
-        if (miss.type === "Note On") {
-            wtf.sound_generator.produceSound(frequency, 0.25);
-        }
-        else if (miss.type === "Note Off") {
-            wtf.sound_generator.destroySound(frequency);
-        }
-        else if (miss.type === "Key Signature" && app.transpose === false) {
-            app.tonic = miss.tonic;
-            app.mode = miss.mode;
-        }
-        oops();
+        app.targets.shift();
     }
+
+    // Update canvas.
     if (app.frame_counter > 1 / app.frames_per_second) {
         draw();
         app.frame_counter = 0;
@@ -559,9 +592,12 @@ function draw() {
     var ymin = 0;
     var xmax = cvs.width;
     var ymax = cvs.height;
+    var target_width = 0.01;
+    var target_height = 0.05;
 
     drawLines();
     drawTargets();
+    drawBoundaries();
     drawKeySignature();
     drawInfo();
 
@@ -576,62 +612,85 @@ function draw() {
         drawLine(ctx, xmax, ymin, xmax, ymax, 1, "black");
         drawLine(ctx, xmin, ymax, xmax, ymax, 1, "black");
 
-        // boundaries
-        drawLine(ctx, app.edge * xmax, ymin, app.edge * xmax, ymax, 1, "black");
-
         // guides
-        for (var yprop = 0.1; yprop < 0.95; yprop += 0.05) {
-            var yval = yprop * ymax;
-            drawLine(ctx, 0, yval, xmax, yval, 1, "lightGray");
+        for (var yprop = 0.1; yprop < 1; yprop += target_height) {
+            drawLine(ctx, 0, yprop * ymax, xmax, yprop * ymax, 1, "lightGray");
         }
 
         // staff one
         if (app.treble) {
-            drawLine(ctx, 0, 0.25 * ymax, xmax, 0.25 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.30 * ymax, xmax, 0.30 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.35 * ymax, xmax, 0.35 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.40 * ymax, xmax, 0.40 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.45 * ymax, xmax, 0.45 * ymax, 2, "black");
+            for (var i = 0; i < 5; i++) {
+                var yprop = target_height * i + 0.25;
+                drawLine(ctx, 0, yprop * ymax, xmax, yprop * ymax, 2, "gray");
+            }
         }
 
         // staff two
         if (app.bass) {
-            drawLine(ctx, 0, 0.55 * ymax, xmax, 0.55 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.60 * ymax, xmax, 0.60 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.65 * ymax, xmax, 0.65 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.70 * ymax, xmax, 0.70 * ymax, 2, "black");
-            drawLine(ctx, 0, 0.75 * ymax, xmax, 0.75 * ymax, 2, "black");
+            for (var i = 0; i < 5; i++) {
+                var yprop = target_height * i + 0.55;
+                drawLine(ctx, 0, yprop * ymax, xmax, yprop * ymax, 2, "gray");
+            }
         }
+    }
+
+    function drawBoundaries() {
+        var xval = app.edge * xmax;
+        drawLine(ctx, xval, ymin, xval, ymax, target_width * xmax, "black");
+
+        utils.assert(app.anvil < app.hammer);
+        if (app.hammer - app.anvil !== target_width) {
+            utils.assert(app.hammer - app.anvil > target_width);
+        }
+        xval = (app.anvil + target_width / 2) * xmax;
+        drawLine(ctx, xval, ymin, xval, ymax, 1, "black");
+        xval = (app.hammer - target_width / 2) * xmax;
+        drawLine(ctx, xval, ymin, xval, ymax, 1, "black");
     }
 
     function drawTargets() {
         for (var i = 0; i < app.targets.length; i++) {
             var target = app.targets[i];
-            drawTarget(target);
+            drawTarget(target, target.x, target2yprop(target));
         }
-        function drawTarget(target) {
-            var wval = 0.01 * xmax;
-            var hval = 0.05 * ymax;
-            var xval = (target.x * xmax) - (wval / 2.0);
-            var yval = (target.y * ymax) - (hval / 2.0);
+        function target2yprop(target) {
+            var dlut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
+            var ds = 0;
+            ds += app.DEGREES_PER_OCTAVE * (app.octave - app.MIDDLE_OCTAVE);
+            ds += dlut[app.tonic[0]];
+            ds += target.degree;
             if (target.accidental !== 0) {
-                hval /= 2.0;
-                yval += target.accidental * hval;
+                ds += target.accidental * 0.5;
             }
+            return 0.5 - (ds * target_height / 2);
+        }
+        function drawTarget(target, xprop, yprop) {
+            var wval = target_width * xmax;
+            var hval = target_height * ymax;
+            if (target.accidental !== 0) {
+                hval /= 2;
+            }
+            var xval = (xprop * xmax) - (wval / 2);
+            var yval = (yprop * ymax) - (hval / 2);
 
             ctx.beginPath();
-            ctx.fillStyle = app.target_color;
+            ctx.fillStyle = "black";
             ctx.strokeStyle = "black";
             if (target.type === "Note On") {
                 utils.assert(-2 < target.accidental && target.accidental < 2);
-                ctx.fillRect(xval, yval, wval, hval);
+                ctx.rect(xval, yval, wval, hval);
             }
             else if (target.type === "Key Signature") {
-                drawLine(ctx, target.x * xmax, 0, target.x * xmax, ymax);
+                drawLine(ctx, xval, 0, xval, ymax);
             }
             ctx.fill();
             ctx.stroke();
             ctx.closePath();
+
+            if (target.type === "Note On") {
+                yval += (hval / 2);
+                drawLine(ctx, xval, yval, xval + wval, yval, 3, "white");
+            }
         }
     }
 
@@ -695,10 +754,10 @@ function draw() {
         for (var i = 0; i < white.length - 1; i++) {
             var idx = utils.mod(arr.indexOf(app.tonic[0]) + i, arr.length);
             var key = arr[idx];
-            var expected = degree2note(white, app.MIDDLE, i);
-            var observed = degree2note(scale, app.MIDDLE, i);
+            var expected = degree2note(white, app.MIDDLE_OCTAVE, i);
+            var observed = degree2note(scale, app.MIDDLE_OCTAVE, i);
             if (app.tonic === "Cb") {
-                expected = degree2note(white, app.MIDDLE + 1, i);
+                expected = degree2note(white, app.MIDDLE_OCTAVE + 1, i);
             }
             if (expected !== observed) {
                 var atom = observed < expected ? "b" : "#";
@@ -730,13 +789,14 @@ function draw() {
 
     function drawInfo() {
         var xval = 0.025 * xmax;
-        var yval = 0.025 * ymax;
-        drawText(ctx, "Points: " + app.score, xval, yval, "black", "white", 8);
+        var yval = 0;
 
-        xval = 0.025 * xmax;
-        yval = 0.05 * ymax;
-        drawText(ctx, "Record: " + app.best, xval, yval, "black", "white", 8);
-
+        yval += 0.025 * ymax;
+        drawText(ctx, "Score: " + app.score, xval, yval, "black", "white", 8);
+        yval += 0.025 * ymax;
+        drawText(ctx, "Badge: " + app.badge, xval, yval, "black", "white", 8);
+        yval += 0.025 * ymax;
+        drawText(ctx, "Bonus: " + app.bonus, xval, yval, "black", "white", 8);
     }
 }
 
@@ -763,19 +823,14 @@ function main(argv) {
     });
     document.onkeydown = function(evt) {
         var keyid = utils.keyEventSourceId(evt);
-        if (app.kmap.hasOwnProperty(keyid)) {
-            var note = app.kmap[keyid];
-            noteOn(note);
-            wtf.sound_generator.produceSound(note2frequency(note), 0.25);
-        }
+        var note = app.kmap[keyid];
+        noteOn(note);
     };
     document.onkeyup = function(evt) {
         var keyid = utils.keyEventSourceId(evt);
-        if (app.kmap.hasOwnProperty(keyid)) {
-            var note = app.kmap[keyid];
-            wtf.sound_generator.destroySound(note2frequency(note));
-            noteOff(note);
-        }
+        var note = app.kmap[keyid];
+        wtf.sound_generator.destroySound(note2frequency(note));
+        noteOff(note);
     };
     document.getElementById("fsrc").onchange = function(evt) {
         var reader = new FileReader();
@@ -796,6 +851,7 @@ function main(argv) {
         app.targets.length = 0;
         app.qtime = 0.0;
         app.score = 0;
+        app.bonus = 0;
         wtf.sound_generator.clear();
         buildQueue(midi2object(src));
     }
@@ -931,12 +987,8 @@ function main(argv) {
         }
         var note = evt.parameters[0];
         var velocity = evt.parameters[1];
-        var octave = app.MIDDLE;
+        var octave = app.MIDDLE_OCTAVE;
         var degrees = note2degrees(scale, octave, note);
-        var lut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
-        var yref = 0.5;
-        yref -= lut[app.tonic[0]] * 0.025;
-        yref += (scale.length - 1) * app.MIDDLE * 0.025;
         var targets = [];
         for (var i = 0; i < degrees.length; i++) {
             var degree = degrees[i];
@@ -948,7 +1000,6 @@ function main(argv) {
                 accidental: accidental,
                 octave: octave,
                 x: 1,
-                y: yref - (degree + (scale.length - 1) * octave) * 0.025,
             });
         }
         return targets;

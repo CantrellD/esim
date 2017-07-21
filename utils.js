@@ -14,7 +14,89 @@ var utils = (function() {
 // archetypes
 ///////////////////////////////////////////////////////////////////////////////
 
-    var prng = {
+    var Node = {
+        value: null,
+        next: null,
+        get: function(index) {
+            var node = this.next;
+            for (var i = 0; i < index; i++) {
+                node = node.next;
+            }
+            return node;
+        }
+    }
+
+    var Queue = {
+        create: function(arr) {
+            var head = Object.create(Node, {});
+            var node = head;
+            for (var i = 0; i < arr.length; i++) {
+                node.next = Object.create(Node, {
+                    value: {
+                        value: arr[i],
+                    },
+                });
+                node = node.next;
+            }
+            return Object.create(this, {
+                head: {
+                    value: head,
+                },
+                length: {
+                    value: arr.length,
+                },
+            });
+        },
+        get: function(index) {
+            assert(0 <= index && index < this.length);
+            return this.head.get(index).value;
+        },
+        popFrom: function(index) {
+            assert(0 <= index && index < this.length);
+            var node = (index === 0) ? this.head : this.head.get(index - 1);
+            var elt = node.next.value;
+            this.length -= 1;
+            node.next = node.next.next;
+            return elt;
+        },
+        pop: function() {
+            assert(this.length > 0);
+            return this.popFrom(this.length - 1);
+        },
+        shift: function() {
+            assert(this.length > 0);
+            return this.popFrom(0);
+        },
+        clear: function() {
+            this.length = 0;
+            this.head.next = null;
+        },
+        push: function(elt) {
+            var node = this.head.get(this.length - 1);
+            node.next = Object.create(Node, {
+                value: {
+                    value: elt,
+                },
+            });
+            this.length += 1;
+            return this.length;
+        },
+        unshift: function(elt) {
+            var node = this.head.next;
+            this.head.next = Object.create(Node, {
+                value: {
+                    value: elt,
+                },
+                next: {
+                    value: node,
+                },
+            });
+            this.length += 1;
+            return this.length;
+        },
+    }
+
+    var PseudoRandomNumberGenerator = {
         _lowBits: function(arg, n) {
             var uarg = ui32(arg);
             var ret = ui32(0);
@@ -96,9 +178,15 @@ var utils = (function() {
         },
     };
 
+    var prototypes = {
+        Queue: Queue,
+    };
+    counter += 1;
+
 ///////////////////////////////////////////////////////////////////////////////
 // cantrips
 ///////////////////////////////////////////////////////////////////////////////
+
     function deprecate() {
         var src = (new Error).stack.split("\n")[4].trim();
         if (statics.hideDeprecationMessages) {
@@ -364,7 +452,7 @@ var utils = (function() {
 
     function seed(arg) {
         arg = orElse(arg, ui32(Math.random() * 4294967296));
-        statics.prng = Object.create(prng, {});
+        statics.prng = Object.create(PseudoRandomNumberGenerator, {});
         statics.prng.seed(arg);
     }
     counter += 1;
@@ -623,6 +711,7 @@ var utils = (function() {
         mod: mod,
         orElse: orElse,
         permutations: permutations,
+        prototypes: prototypes,
         randInt32: randInt32,
         random: random,
         reEscape: reEscape,
