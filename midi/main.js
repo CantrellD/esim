@@ -81,7 +81,8 @@ app.tonic = "C";
 app.mode = "ionian";
 app.octave = app.MIDDLE_OCTAVE;
 app.transpose = false;
-app.pool = [0, 1, 2, 3, 4];
+app.colors = ["Black"];
+app.filters = [];
 app.kmap = app.DEFAULT_KEYBOARD_MAP;
 
 app.magic = false;
@@ -90,7 +91,6 @@ app.bass = true;
 app.frames_per_second = 120;
 app.ticks_per_second = 60;
 app.speed = 1.0;
-app.target_color = "black";
 app.edge = 0.1;
 app.anvil = 0.14;
 app.hammer = 0.16;
@@ -238,6 +238,7 @@ function midi2object(arr) {
             chunk_id: "",
             chunk_size: 0,
             chunk_offset: null,
+            hint: "",
         };
         var events = [];
         var buffer = null;
@@ -254,6 +255,13 @@ function midi2object(arr) {
             while (index < header.chunk_offset + header.chunk_size) {
                 buffer = parseEvents();
                 for (var i = 0; i < buffer.length; i++) {
+                    var evt = buffer[i];
+                    if (evt.type === 0xFF && evt.parameters[0] === 0x03) {
+                        for (var j = 2; j < evt.parameters[1]; j++) {
+                            var parameter = evt.parameters[j];
+                            header.hint += String.fromCharCode(parameter);
+                        }
+                    }
                     events.push(buffer[i]);
                 }
             }
@@ -549,15 +557,18 @@ function tick() {
                 var ref = app.targets[app.targets.length - 1];
                 if (ref.tonic !== target.tonic || ref.mode !== target.mode) {
                     app.targets.push({
-                        timestamp: target.qtime,
+                        timestamp: target.timestamp,
                         type: "Key Signature",
+                        track: 0,
                         tonic: target.tonic,
                         mode: target.mode,
                         x: 1,
                     });
                 }
             }
-            app.targets.push(target);
+            if (!utils.containsElement(app.filters, target.track)) {
+                app.targets.push(target);
+            }
         }
     }
 
@@ -704,10 +715,16 @@ function draw() {
             hval /= 3; // TODO: Rename target_height to something else.
             var xval = (xprop * xmax) - (wval / 2);
             var yval = (yprop * ymax) - (hval / 2);
+            var color = app.colors[utils.mod(target.track, app.colors.length)];
 
             ctx.beginPath();
-            ctx.fillStyle = "white";
-            ctx.strokeStyle = "black";
+            ctx.fillStyle = "White";
+            if (utils.containsElement(app.filters, target.track)) {
+                ctx.strokeStyle = "White";
+            }
+            else {
+                ctx.strokeStyle = color;
+            }
             if (target.type === "Note On") {
                 utils.assert(-2 < target.accidental && target.accidental < 2);
                 ctx.rect(xval, yval, wval, hval);
@@ -886,6 +903,8 @@ function main(argv) {
             reader.readAsArrayBuffer(evt.target.files[0]);
         }
     };
+    document.getElementById("fbtn").onclick = function() {app.speed *= 2;}
+    document.getElementById("sbtn").onclick = function() {app.speed /= 2;}
     document.getElementById("ibtn").onclick = function() {
         if (app.qdata === "") {
             alert("Please choose a MIDI file.");
@@ -980,7 +999,7 @@ function main(argv) {
                 parameters: evt.parameters,
                 hint: evt.hint,
                 target_channel: evt.channel,
-                source_track: val.track_idx,
+                src_track: val.track_idx,
             });
             if (evt.type === 0xFF && evt.parameters[0] === 0x51) {
                 var seconds_per_micro = 0.000001
@@ -1024,6 +1043,7 @@ function main(argv) {
             return [{
                 timestamp: evt.timestamp,
                 type: "Key Signature",
+                track: evt.src_track,
                 tonic: tonic,
                 mode: mode,
                 x: 1,
@@ -1044,6 +1064,7 @@ function main(argv) {
             targets.push({
                 timestamp: evt.timestamp,
                 type: (velocity === 0 ? "Note Off" : evt.hint),
+                track: evt.src_track,
                 degree: degree,
                 accidental: accidental,
                 tonic: tonic,
