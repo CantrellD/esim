@@ -238,7 +238,6 @@ function midi2object(arr) {
             chunk_id: "",
             chunk_size: 0,
             chunk_offset: null,
-            hint: "",
         };
         var events = [];
         var buffer = null;
@@ -255,13 +254,6 @@ function midi2object(arr) {
             while (index < header.chunk_offset + header.chunk_size) {
                 buffer = parseEvents();
                 for (var i = 0; i < buffer.length; i++) {
-                    var evt = buffer[i];
-                    if (evt.type === 0xFF && evt.parameters[0] === 0x03) {
-                        for (var j = 2; j < evt.parameters[1]; j++) {
-                            var parameter = evt.parameters[j];
-                            header.hint += String.fromCharCode(parameter);
-                        }
-                    }
                     events.push(buffer[i]);
                 }
             }
@@ -319,6 +311,15 @@ function midi2object(arr) {
             // TODO: Verify that MIDI files don't use real-time messages.
             // Real-time messages should not terminate this loop! FIXME?
             while (true) {
+                if (delta === null) {
+                    // This should only happen after the first iteration.
+                    delta = parseVariableLengthValue();
+                }
+                else {
+                    // I think this is true during the first iteration?
+                    utils.assert(ui32(arr[index] & 0x80) === 0);
+                    utils.assert(ui32(arr[index + 1] & 0x80) === 0);
+                }
                 if (ui32(arr[index] & 0x80) > 0) {
                     break;
                 }
@@ -351,6 +352,7 @@ function midi2object(arr) {
                     }["0x" + ui32(type & 0xF0).toString(16).toUpperCase()],
                     channel: ui32(type & 0x0F),
                 });
+                delta = null;
             }
         }
         return events;
