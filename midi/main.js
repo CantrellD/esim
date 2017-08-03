@@ -185,6 +185,7 @@ function noteOff(note) {
 
 function midi2object(arr) {
     var index = 0;
+    var runner = null; // Status byte. Used for Running Status.
 
     function ui32(arg) {
         return utils.ui32(arg);
@@ -228,6 +229,7 @@ function midi2object(arr) {
         header.time_division += ui32(arr[index++] << 0);
         for (var i = 0; i < header.number_of_tracks; i++) {
             tracks.push(parseTrack());
+            runner = null; // TODO: Verify that running status doesn't persist.
         }
         utils.assert(index === arr.length);
         return {header: header, tracks: tracks};
@@ -252,10 +254,7 @@ function midi2object(arr) {
         header.chunk_offset = index;
         if (header.chunk_id === "MTrk") {
             while (index < header.chunk_offset + header.chunk_size) {
-                buffer = parseEvents();
-                for (var i = 0; i < buffer.length; i++) {
-                    events.push(buffer[i]);
-                }
+                events.push(parseEvent());
             }
             utils.assert(index === header.chunk_offset + header.chunk_size);
         }
@@ -265,14 +264,26 @@ function midi2object(arr) {
         return {header: header, events: events};
     }
 
-    function parseEvents() {
-        var events = [];
+    function parseEvent() {
         var delta = parseVariableLengthValue();
-        var type = ui32(arr[index++]);
+        var type = null;
         var parameters = null;
-        utils.assert(-1 < type && type < 256);
-        utils.assert(ui32(type & 0x80) > 0);
+
+        if (ui32(arr[index] & 0x80) > 0) {
+            runner = null;
+        }
+
+        if (runner === null) {
+            type = ui32(arr[index++]);
+            utils.assert(-1 < type && type < 256);
+            utils.assert(ui32(type & 0x80) > 0); // True for status bytes.
+        }
+        else {
+            type = runner;
+        }
+
         if (ui32(type & 0xF0) === 0xF0) {
+            utils.assert(runner === null);
             parameters = [];
             if (type === 0xF0) {
                 while (index < arr.length && arr[index] !== 0xF7) {
@@ -298,64 +309,43 @@ function midi2object(arr) {
                     parameters.push(arr[index++]);
                 }
             }
-            events.push({
+            return {
                 delta: delta,
                 type: type,
                 parameters: parameters,
                 hint: null,
                 channel: null,
-            });
+            };
         }
         else {
-            // Running Status allows multiple events per status byte.
-            // TODO: Verify that MIDI files don't use real-time messages.
-            // Real-time messages should not terminate this loop! FIXME?
-            while (true) {
-                if (delta === null) {
-                    // This should only happen after the first iteration.
-                    delta = parseVariableLengthValue();
-                }
-                else {
-                    // I think this is true during the first iteration?
-                    utils.assert(ui32(arr[index] & 0x80) === 0);
-                    utils.assert(ui32(arr[index + 1] & 0x80) === 0);
-                }
-                if (ui32(arr[index] & 0x80) > 0) {
-                    break;
-                }
-                if (ui32(arr[index + 1] & 0x80) > 0) {
-                    break;
-                }
-                parameters = [];
-                if (ui32(type & 0xF0) === 0xC0) {
-                    parameters.push(arr[index++]);
-                }
-                else if (ui32(type & 0xF0) === 0xD0) {
-                    parameters.push(arr[index++]);
-                }
-                else {
-                    parameters.push(arr[index++]);
-                    parameters.push(arr[index++]);
-                }
-                events.push({
-                    delta: delta,
-                    type: type,
-                    parameters: parameters,
-                    hint: {
-                        "0x80": "Note Off",
-                        "0x90": "Note On",
-                        "0xA0": "Polyphonic Key Pressure (Aftertouch)",
-                        "0xB0": "Control Change",
-                        "0xC0": "Program Change",
-                        "0xD0": "Channel Pressure (Aftertouch)",
-                        "0xE0": "Pitch Bend Change",
-                    }["0x" + ui32(type & 0xF0).toString(16).toUpperCase()],
-                    channel: ui32(type & 0x0F),
-                });
-                delta = null;
+            runner = type;
+            parameters = [];
+            if (ui32(type & 0xF0) === 0xC0) {
+                parameters.push(arr[index++]);
             }
+            else if (ui32(type & 0xF0) === 0xD0) {
+                parameters.push(arr[index++]);
+            }
+            else {
+                parameters.push(arr[index++]);
+                parameters.push(arr[index++]);
+            }
+            return {
+                delta: delta,
+                type: type,
+                parameters: parameters,
+                hint: {
+                    "0x80": "Note Off",
+                    "0x90": "Note On",
+                    "0xA0": "Polyphonic Key Pressure (Aftertouch)",
+                    "0xB0": "Control Change",
+                    "0xC0": "Program Change",
+                    "0xD0": "Channel Pressure (Aftertouch)",
+                    "0xE0": "Pitch Bend Change",
+                }["0x" + ui32(type & 0xF0).toString(16).toUpperCase()],
+                channel: ui32(type & 0x0F),
+            };
         }
-        return events;
     }
     return parseFile();
 }
