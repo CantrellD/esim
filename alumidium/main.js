@@ -88,8 +88,6 @@ function midi2object(arr) {
         return {
             header: {
                 chunk_id: chunk_id,
-                chunk_size: chunk_size,
-                chunk_offset: chunk_offset,
             },
             events: events,
         };
@@ -301,6 +299,8 @@ function main(argv) {
     utils.update(app, utils.uri2data(window.location.href, []));
     document.getElementById("save_button").onclick = function() {
         var txt = document.getElementById("json_textarea").value;
+        txt = txt.replace(/[,][\r]?[\n][\s]*[\x5d]/g, "\x5d");
+        txt = txt.replace(/[,][\r]?[\n][\s]*[\x7d]/g, "\x7d");
         var obj = JSON.parse(txt);
         save(object2midi(obj));
     }
