@@ -599,6 +599,7 @@ function tick() {
     // Destroy targets.
     while (app.targets.length > 0 && app.targets[0].x < app.edge) {
         app.targets.shift();
+        app.bonus = 0;
     }
 
     // Update canvas.
