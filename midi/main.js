@@ -77,6 +77,7 @@ app.FLAT_CHAR = '\u266D';
 
 app.verbose = false;
 app.debug = false;
+app.echo = false;
 app.tonic = "C";
 app.mode = "ionian";
 app.octave = app.MIDDLE_OCTAVE;
@@ -685,7 +686,7 @@ function draw() {
     function drawTargets() {
         for (var i = 0; i < app.targets.length; i++) {
             var target = app.targets[i];
-            drawTarget(target, target.x, target2yprop(target));
+            drawTarget(target);
         }
         function target2yprop(target) {
             var dlut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
@@ -698,7 +699,9 @@ function draw() {
             }
             return 0.5 - (ds * target_height / 2);
         }
-        function drawTarget(target, xprop, yprop) {
+        function drawTarget(target) {
+            var xprop = target.x;
+            var yprop = target2yprop(target);
             var wval = target_width * xmax;
             var hval = target_height * ymax;
             if (target.accidental !== 0) {
@@ -710,7 +713,14 @@ function draw() {
             var color = app.colors[utils.mod(target.track, app.colors.length)];
 
             ctx.beginPath();
-            ctx.fillStyle = "White";
+            var scale = createScale(target.tonic, target.mode);
+            var note = degree2note(scale, target.octave, target.degree);
+            if (app.echo && utils.containsElement(app.active_notes, note)) {
+                ctx.fillStyle = "Black";
+            }
+            else {
+                ctx.fillStyle = "White";
+            }
             if (utils.containsElement(app.filters, target.track)) {
                 ctx.strokeStyle = "White";
             }
