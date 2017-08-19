@@ -93,7 +93,7 @@ app.frames_per_second = 120;
 app.ticks_per_second = 60;
 app.speed = 1.0;
 app.edge = 0.1;
-app.anvil = 0.14;
+app.anvil = 0.15;
 app.hammer = 0.16;
 app.x_velocity = -0.10;
 app.targets = [];
@@ -112,6 +112,7 @@ wtf.canvas = null;
 wtf.context = null;
 wtf.audio = null;
 wtf.sound_generator = null;
+wtf.patch = null;
 
 
 ////////////////////////////////////////////////////////////////
@@ -569,7 +570,7 @@ function tick() {
     for (var i = 0; i < app.targets.length; i++) {
         var target = app.targets[i];
         target.x += app.x_velocity * dt;
-        if (target.x > (app.anvil + app.hammer) / 2) {
+        if (target.x > app.anvil) {
             continue;
         }
         if (target.type === "Key Signature") {
@@ -600,6 +601,11 @@ function tick() {
     while (app.targets.length > 0 && app.targets[0].x < app.edge) {
         app.targets.shift();
         app.bonus = 0;
+    }
+
+    // Callbck.
+    if (wtf.patch !== null) {
+        wtf.patch(dt);
     }
 
     // Update canvas.
@@ -665,23 +671,13 @@ function draw() {
 
     function drawBoundaries() {
         var xval = app.edge * xmax;
-        drawLine(ctx, xval, ymin, xval, ymax, target_width * xmax, "black");
+        drawLine(ctx, xval, ymin, xval, ymax, 1, "black");
 
         utils.assert(app.anvil < app.hammer);
-        if (app.hammer - app.anvil !== target_width) {
-            utils.assert(app.hammer - app.anvil > target_width);
-        }
-        xval = (app.anvil + target_width / 2) * xmax;
+        xval = app.anvil * xmax;
         drawLine(ctx, xval, ymin, xval, ymax, 1, "black");
-        xval = (app.hammer - target_width / 2) * xmax;
+        xval = app.hammer * xmax;
         drawLine(ctx, xval, ymin, xval, ymax, 1, "black");
-
-        if (app.debug) {
-            xval = app.anvil * xmax;
-            drawLine(ctx, xval, ymin, xval, ymax, 1, "red");
-            xval = app.hammer * xmax;
-            drawLine(ctx, xval, ymin, xval, ymax, 1, "red");
-        }
     }
 
     function drawTargets() {
@@ -709,7 +705,7 @@ function draw() {
                 hval /= 2;
             }
             hval /= 3; // TODO: Rename target_height to something else.
-            var xval = (xprop * xmax) - (wval / 2);
+            var xval = (xprop * xmax);
             var yval = (yprop * ymax) - (hval / 2);
             var color = app.colors[utils.mod(target.track, app.colors.length)];
 
