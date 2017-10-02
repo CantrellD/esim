@@ -1,23 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<title>MIDI</title>
-	<script src="utils.js"></script>
-	<script src="midi/main.js"></script>
+    <meta charset="UTF-8">
+    <title>MIDI</title>
+    <script src="utils.js"></script>
+    <script src="midi/main.js"></script>
 </head>
 <body>
-	<div>
-	<button type="button" id="ibtn">Initialize</button>
-	<button type="button" id="sbtn">Slower</button>
-	<button type="button" id="fbtn">Faster</button>
-	<input type="file" id="fsrc" />
-	</div>
-	<div>
-		<canvas id="canvas" width="1024" height="512"></canvas>
-	</div>
-	<script type="text/javascript">
-		main();
-	</script>
+    <div>
+    <button type="button" id="ibtn">Initialize</button>
+    <input type="file" id="fsrc" />
+    <select id="psel">
+        <option value="" disabled="disabled" selected="selected">
+            Choose a parameter...
+        </option>
+    </select>
+    <input type="text" id="ptxt">
+    <button type="button" id="pbtn">Update Parameter</button>
+    </div>
+    <div>
+        <canvas id="canvas" width="1024" height="512"></canvas>
+    </div>
+    <script type="text/javascript">
+        main();
+    </script>
 </body>
 </html>

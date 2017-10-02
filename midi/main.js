@@ -78,6 +78,7 @@ app.FLAT_CHAR = '\u266D';
 app.verbose = false;
 app.debug = false;
 app.echo = false;
+app.hack = false;
 app.tonic = "C";
 app.mode = "ionian";
 app.octave = app.MIDDLE_OCTAVE;
@@ -94,10 +95,10 @@ app.ticks_per_second = 60;
 app.speed = 1.0;
 app.edge = 0.1;
 app.anvil = 0.15;
-app.hammer = 0.16;
+app.hammer = 0.17;
 app.x_velocity = -0.10;
 app.targets = [];
-app.qdata = "";
+app.qdata = greensleeves();
 app.queue = [];
 app.qtime = 0;
 app.score = 0;
@@ -112,7 +113,20 @@ wtf.canvas = null;
 wtf.context = null;
 wtf.audio = null;
 wtf.sound_generator = null;
-wtf.patch = null;
+wtf.patch = function(dt) {
+    if (!app.hack) {
+        return;
+    }
+    var ts = app.targets;
+    var ref = "Note On";
+    var i = 0;
+    while (i < ts.length && (ts[i].x <= app.anvil || ts[i].type !== ref)) {
+        i += 1;
+    }
+    if (i < ts.length) {
+        app.hammer = ts[i].x + 0.005;
+    }
+};
 
 
 ////////////////////////////////////////////////////////////////
@@ -842,6 +856,8 @@ function draw() {
             symbol = symbol.replace(/[#]/g, app.SHARP_CHAR);
             symbol = symbol.replace(/[b]/g, app.FLAT_CHAR);
             drawText(ctx, symbol, xval, yval, "black", "black", 16);
+            yval += 0.35 * ymax;
+            drawText(ctx, symbol, xval, yval, "black", "black", 16);
         }
     }
 
@@ -883,6 +899,8 @@ function main(argv) {
         var keyid = utils.keyEventSourceId(evt);
         if (app.kmap.hasOwnProperty(keyid)) {
             var note = app.kmap[keyid];
+            var frequency = note2frequency(note);
+            wtf.sound_generator.produceSound(frequency, 0.25);
             noteOn(note);
         }
     };
@@ -890,9 +908,34 @@ function main(argv) {
         var keyid = utils.keyEventSourceId(evt);
         if (app.kmap.hasOwnProperty(keyid)) {
             var note = app.kmap[keyid];
+            var frequency = note2frequency(note);
+            wtf.sound_generator.destroySound(frequency);
             noteOff(note);
         }
     };
+    var pnames = Object.getOwnPropertyNames(app);
+    pnames.sort();
+    for (var i = 0; i < pnames.length; i++) {
+        document.getElementById("psel").add((function() {
+            var pname = pnames[i];
+            var opt = document.createElement("option");
+            opt.value = pname;
+            opt.text = pname;
+            return opt;
+        })(), null);
+    }
+    document.getElementById("psel").onchange = function() {
+        document.getElementById("ptxt").value = JSON.stringify(app[this.value]);
+    }
+    document.getElementById("pbtn").onclick = function() {
+        var sel = document.getElementById("psel");
+        try {
+            app[sel.value] = JSON.parse(document.getElementById("ptxt").value);
+        }
+        catch (err) {
+            alert("Error: Invalid JSON.");
+        }
+    }
     document.getElementById("fsrc").onchange = function(evt) {
         var reader = new FileReader();
         reader.onload = function(evt) {
@@ -902,8 +945,6 @@ function main(argv) {
             reader.readAsArrayBuffer(evt.target.files[0]);
         }
     };
-    document.getElementById("fbtn").onclick = function() {app.speed *= 2;}
-    document.getElementById("sbtn").onclick = function() {app.speed /= 2;}
     document.getElementById("ibtn").onclick = function() {
         if (app.qdata === "") {
             alert("Please choose a MIDI file.");
@@ -1074,4 +1115,8 @@ function main(argv) {
         }
         return targets;
     }
+}
+
+function greensleeves() {
+    return "TVRoZAAAAAYAAQADAYBNVHJrAAAAUwD/Aw1jb250cm9sIHRyYWNrAP8BCWNyZWF0b3I6IAD/AR5HTlUgTGlseVBvbmQgMi4xOC4yICAgICAgICAgICAA/1gEBgMSCAD/UQMPQkAA/y8ATVRyawAABDIA/wMJdXBwZXI6b25lALAHZACwB2QAsAdkALAHZAD/WQIBAACQQFoAkDtagUCQQAAAkDsAAJBDWgCQQFqDAJBDAACQQAAAkEVaAJA+WoFAkEUAAJA+AACQR1oAkD5agiCQRwAAkD4AAJBIWmCQSAAAkENaAJBHWoFAkEMAAJBHAACQRVoAkEJagwCQRQAAkEIAAJBCWgCQPlqBQJBCAACQPgAAkD5agiCQPgAAkEBaYJBAAACQQloAkDxagUCQQgAAkDwAAJBDWgCQO1qDAJBDAACQOwAAkEBaAJA7WoFAkEAAAJA7AACQQFoAkDlagiCQQAAAkDkAAJA/WmCQPwAAkEBagUCQQAAAkEJaAJA/WoRAkEIAAJA/AACQO1qDAJA7AACQQFoAkDtagUCQQAAAkDsAAJBDWgCQQFqDAJBDAACQQAAAkEVaAJA+WoFAkEUAAJA+AACQR1oAkD5agiCQRwAAkD4AAJBIWmCQSAAAkEdaAJBDWoFAkEcAAJBDAACQQloAkEVagwCQQgAAkEUAAJBCWgCQPlqBQJBCAACQPgAAkD5agiCQPgAAkEBaYJBAAACQQloAkDxagUCQQgAAkDwAAJBDWgCQO1qCIJBDAACQOwAAkEJaYJBCAACQQFoAkDxagUCQQAAAkDwAAJA/WgCQO1qCIJA/AACQOwAAkD1aYJA9AACQO1oAkD9agUCQOwAAkD8AAJBAWgCQO1qEQJBAAACQOwAAkEBaAJA7WoMAkEAAAJA7AIFAkEpaAJBCWoRAkEoAAJBCAACQSloAkEdagiCQSgAAkEcAAJBJWgCQRVpgkEkAAJBFAACQR1oAkENagUCQRwAAkEMAAJBFWgCQQlqDAJBFAACQQgAAkD5aAJBCWoFAkD4AAJBCAACQPlqCIJA+AACQQFpgkEAAAJBCWgCQPFqBQJBCAACQPAAAkENaAJA7WoMAkEMAAJA7AACQQFoAkDtagUCQQAAAkDsAAJBAWgCQOVqCIJBAAACQOQAAkD9aYJA/AACQQFqBQJBAAACQQloAkD9agwCQQgAAkD8AAJA7WgCQP1qBQJA7AACQPwAAkDtagwCQOwCBQJBKWgCQQlqEQJBKAACQQgAAkEpaAJBHWoIgkEoAAJBHAACQSFoAkEVaYJBIAACQRQAAkEdaAJBDWoFAkEcAAJBDAACQRVoAkEJagwCQRQAAkEIAAJBCWgCQPlqBQJBCAACQPgAAkD5agiCQQFpgkD4AAJBAAACQQloAkDxagUCQQgAAkDwAAJBDWgCQO1qCIJBDAACQOwAAkEJaYJBCAACQQFoAkDxagUCQQAAAkDwAAJA7WgCQP1qCIJA7AACQPwAAkD1aYJA9AACQP1oAkDtagUCQPwAAkDsAAJBAWgCQO1qEQJBAAACQOwAAkEBaAJA7WoMAkEAAAJA7AAD/LwBNVHJrAAAD7QD/Awlsb3dlcjpvbmUAsQdkALEHZACxB2QAsQdkAP9ZAgEAAJE3WgCRNFqBQJE3AACRNAAAkTtaAJE0WoMAkTsAAJE0AACROVoAkTZagUCROQAAkTYAAJE3WoMAkTcAAJE3WgCRO1qBQJE3AACROwAAkT5aAJEyWoFAkT4AAJE+WoFAkTIAAJE+AACROVoAkTJagUCROQAAkTIAAJE2WgCRMlqDAJE2AACRMgAAkTlaAJEzWoFAkTkAAJEzAACRN1oAkTRagwCRNwAAkTQAAJE3WgCRNFqBQJE3AACRNAAAkTBaAJE5WoMAkTAAAJE5AACRNFoAkTBagUCRNAAAkTAAAJE7WgCRL1qEQJE7AACRLwAAkTtaAJEvWoMAkTsAAJEvAACRN1oAkTRagUCRNwAAkTQAAJE7WgCRNFqDAJE7AACRNAAAkTlaAJE2WoFAkTkAAJE2AACRN1qDAJE3AACRN1oAkTtagUCRNwAAkTsAAJE+WgCRMlqBQJEyAACRMlqBQJE+AACRMgAAkTlaAJEyWoFAkTkAAJEyAACRNloAkTJagwCRNgAAkTIAAJE5WgCRNlqBQJE5AACRNgAAkTdaAJE0WoMAkTcAAJE0AACROVoAkS1agUCROQAAkS0AAJEvWgCRNlqDAJEvAACRNgAAkTZaAJEvWoFAkTYAAJEvAACRN1oAkTRahECRNwAAkTQAAJE3WgCRNFqDAJE3AACRNACBQJE7WoRAkTsAAJE+WgCRN1qDAJE+AACRNwAAkT5aAJE3WoFAkT4AAJE3AACRPloAkTJagwCRPgAAkTIAAJEyWgCROVqBQJEyAACROQAAkTZaAJEyWoMAkTYAAJEyAACROVoAkTNagUCROQAAkTMAAJE3WgCRNFqDAJE3AACRNAAAkTdaAJE0WoFAkTcAAJE0AACROVoAkTBagwCROQAAkTAAAJE0WgCRMFqBQJE0AACRMAAAkTtaAJEvWoMAkTsAAJEvAACRL1oAkTZagUCRLwAAkTYAAJE7WgCRL1qDAJE7AACRLwCBQJE7WoRAkTsAAJE+WgCRN1qDAJE+AACRNwAAkT5aAJE3WoFAkT4AAJE3AACRPloAkTJagUCRMgAAkTJagUCRPgAAkTIAAJE5WgCRMlqBQJE5AACRMgAAkTJaAJE2WoMAkTIAAJE2AACROVoAkTNagUCROQAAkTMAAJE3WgCRNFqDAJE3AACRNAAAkTlaAJEtWoFAkTkAAJEtAACRNloAkS9agwCRNgAAkS8AAJE2WgCRL1qBQJE2AACRLwAAkTdaAJE0WoRAkTcAAJE0AACRN1oAkTRagwCRNwAAkTQAAP8vAA==";
 }
