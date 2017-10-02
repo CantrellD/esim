@@ -77,13 +77,13 @@ app.FLAT_CHAR = '\u266D';
 
 app.verbose = false;
 app.debug = false;
-app.echo = false;
+app.echo = true;
 app.hack = false;
 app.tonic = "C";
 app.mode = "ionian";
 app.octave = app.MIDDLE_OCTAVE;
 app.transpose = false;
-app.colors = ["Black"];
+app.colors = ["DarkRed", "DarkGreen", "DarkBlue"];
 app.filters = [];
 app.kmap = app.DEFAULT_KEYBOARD_MAP;
 
