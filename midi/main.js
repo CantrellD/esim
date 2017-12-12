@@ -6,6 +6,7 @@
 
 var app = {};
 app.HOME_ROW = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "Enter"];
+app.KEYSIGX = 0.01;
 app.TONES = {
     "C": 0,
     "C#": 1,
@@ -453,16 +454,20 @@ function note2degrees(scale, octave, note) {
 }
 
 function drawText(ctx, txt, x, y, fColor, sColor, size) {
+    ctx.beginPath(); // TODO: Delete this?
     ctx.font = "" + size.toString() + "pt monospace";
     ctx.strokeStyle = sColor;
     ctx.fillStyle = fColor;
+    ctx.lineWidth = 2; // TODO: Delete this?
     ctx.strokeText(txt, x, y);
     ctx.fillText(txt, x, y);
+    ctx.closePath(); // TODO: Delete this?
 }
 
 function drawLine(ctx, x1, y1, x2, y2, width, color) {
     ctx.beginPath();
     ctx.strokeStyle = color;
+    ctx.fillStyle = color; // TODO: Delete this?
     ctx.lineWidth = width;
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -690,9 +695,9 @@ function draw() {
     var target_height = 0.05;
 
     drawLines();
+    drawKeySignature(app.tonic, app.mode, app.KEYSIGX);
     drawTargets();
     drawBoundaries();
-    drawKeySignature();
     drawInfo();
 
     function drawLines() {
@@ -740,15 +745,21 @@ function draw() {
     }
 
     function drawTargets() {
+        var tonic = app.tonic;
+        var mode = app.mode;
         for (var i = 0; i < app.targets.length; i++) {
             var target = app.targets[i];
+            if (target.type === "Key Signature" && !app.transpose) {
+                tonic = target.tonic;
+                mode = target.mode;
+            }
             drawTarget(target);
         }
         function target2yprop(target) {
             var dlut = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6};
             var ds = 0;
             ds += app.DEGREES_PER_OCTAVE * (app.octave - app.MIDDLE_OCTAVE);
-            ds += dlut[app.tonic[0]];
+            ds += dlut[tonic[0]];
             ds += target.degree;
             if (target.accidental !== 0) {
                 ds += target.accidental * 0.5;
@@ -768,31 +779,34 @@ function draw() {
             var yval = (yprop * ymax) - (hval / 2);
             var color = app.colors[utils.mod(target.track, app.colors.length)];
 
-            ctx.beginPath();
-            var scale = createScale(app.tonic, app.mode);
+            var scale = createScale(tonic, mode);
             var note = degree2note(scale, app.octave, target.degree);
-            if (app.echo && utils.containsElement(app.active_notes, note)) {
-                ctx.fillStyle = "Black";
-            }
-            else {
-                ctx.fillStyle = "White";
-            }
-            if (utils.containsElement(app.filters, target.track)) {
-                ctx.strokeStyle = "White";
-            }
-            else {
-                ctx.strokeStyle = color;
-            }
             if (target.type === "Note On") {
+                ctx.beginPath();
+                if (app.echo && utils.containsElement(app.active_notes, note)) {
+                    ctx.fillStyle = "Black";
+                }
+                else {
+                    ctx.fillStyle = "White";
+                }
+                if (utils.containsElement(app.filters, target.track)) {
+                    ctx.strokeStyle = "White";
+                }
+                else {
+                    ctx.strokeStyle = color;
+                }
+                ctx.lineWidth = 2;
                 utils.assert(-2 < target.accidental && target.accidental < 2);
                 ctx.rect(xval, yval, wval, hval);
+                ctx.fill();
+                ctx.stroke();
+                ctx.closePath();
             }
             else if (target.type === "Key Signature") {
+                var xyzzy = app.hammer - app.KEYSIGX;
                 drawLine(ctx, xval, 0, xval, ymax);
+                drawKeySignature(target.tonic, target.mode, target.x - xyzzy);
             }
-            ctx.fill();
-            ctx.stroke();
-            ctx.closePath();
 
             if (app.debug) {
                 xval = target.x * xmax;
@@ -820,7 +834,7 @@ function draw() {
         sharps: [0.325, 0.3, 0.275, 0.25, 0.225, 0.375, 0.35],
     };
     \*/
-    function drawKeySignature() {
+    function drawKeySignature(tonic, mode, xroot) {
         var wlut = {
             "C": "ionian",
             "D": "dorian",
@@ -862,8 +876,6 @@ function draw() {
             "Fb": 3,
             "Gb": 4,
         };
-        var tonic = app.tonic;
-        var mode = app.mode;
         var scale = createScale(tonic, mode);
         var white = createScale(tonic[0], wlut[tonic[0]]);
         var arr = ["C", "D", "E", "F", "G", "A", "B"];
@@ -893,7 +905,7 @@ function draw() {
         var keys = utils.keys(sig);
         for (var i = 0; i < keys.length; i++) {
             var key = keys[i];
-            var xprop = 0.01 + sig[key].x * 0.01;
+            var xprop = xroot + sig[key].x * 0.01;
             var yprop = 0.5 - sig[key].y * 0.025;
             var xval = xprop * xmax;
             var yval = yprop * ymax + 8;
