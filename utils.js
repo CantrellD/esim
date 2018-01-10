@@ -6,7 +6,7 @@ var utils = (function() {
     var helperc = 0;
     var counter = 0;
     var statics = {
-        prng: null,
+        seed: null,
         hideDeprecationMessages: false
     };
 
@@ -95,88 +95,6 @@ var utils = (function() {
             return this.length;
         },
     }
-
-    var PseudoRandomNumberGenerator = {
-        _lowBits: function(arg, n) {
-            var uarg = ui32(arg);
-            var ret = ui32(0);
-            if (n === 32) {
-                ret = ui32(uarg & 0xFFFFFFFF);
-            }
-            else {
-                ret = ui32((ui32(1 << n) - 1) & uarg);
-            }
-            return ret;
-        },
-        _product32: function(lhs, rhs) {
-            var ulhs = ui32(lhs);
-            var urhs = ui32(rhs);
-            var ret = ui32(0);
-            for (var shift = 0; shift < 32; shift += 4) {
-                var nibble = ui32(ulhs * ((urhs >>> shift) & 0xF));
-                ret = ui32(ret + ui32(nibble << shift));
-            }
-            return ret;
-        },
-        seed: function(arg) {
-            this.zval = ui32(arg);
-            this.fval = 1812433253;
-            this.wval = 32;
-            this.nval = 624;
-            this.mval = 397;
-            this.rval = 31;
-            this.aval = 2567483615;
-            this.uval = 11;
-            this.dval = 4294967295;
-            this.sval = 7;
-            this.bval = 2636928640;
-            this.tval = 15;
-            this.cval = 4022730752;
-            this.lval = 18;
-            this.buf = [];
-            this.buf[0] = this.zval;
-            for (var i = 1; i < this.nval; i++) {
-                var product = this._product32(
-                    this.fval,
-                    this.buf[i - 1] ^ (this.buf[i - 1] >>> (this.wval - 2))
-                )
-                var sum = ui32(product + i);
-                this.buf.push(this._lowBits(sum, this.wval));
-            }
-            this.index = this.nval;
-        },
-        random: function() {
-            return ui32(this.randInt32()) * (1.0 / 4294967296.0);
-        },
-        // Mersenne Twister 19937
-        randInt32: function() {
-            if (this.index === this.nval) {
-                var lmask = this._lowBits(-1, this.rval);
-                var hmask = this._lowBits(~lmask, this.wval);
-                for (var i = 0; i < this.nval; i++) {
-                    var x = ui32(0);
-                    x = ui32(x + ui32(this.buf[i] & hmask));
-                    x = ui32(x + ui32(this.buf[(i + 1) % this.nval] & lmask));
-                    var xa = ui32(x >>> 1);
-                    if ((x % 2) !== 0) {
-                        xa = ui32(xa ^ this.aval);
-                    }
-                    this.buf[i] = this.buf[(i + this.mval) % this.nval] ^ xa;
-                    this.buf[i] = ui32(this.buf[i]);
-                }
-                this.index = 0;
-            }
-            // Deliberately signed to avoid unnecessary operations.
-            var y = i32(this.buf[this.index]);
-            y = y ^ ((y >>> this.uval) & this.dval);
-            y = y ^ ((y << this.sval) & this.bval);
-            y = y ^ ((y << this.tval) & this.cval);
-            y = y ^ (y >>> this.lval);
-            this.index += 1;
-            return i32(this._lowBits(y, this.wval));
-
-        },
-    };
 
     var prototypes = {
         Queue: Queue,
@@ -451,25 +369,24 @@ var utils = (function() {
 ///////////////////////////////////////////////////////////////////////////////
 
     function seed(arg) {
-        arg = orElse(arg, ui32(Math.random() * 4294967296));
-        statics.prng = Object.create(PseudoRandomNumberGenerator, {});
-        statics.prng.seed(arg);
+        statics.seed = orElse(arg, ui32(Math.random() * 4294967296));
+        mt19937.init_genrand(statics.seed);
     }
     counter += 1;
 
     function random() {
-        if (statics.prng === null) {
+        if (statics.seed === null) {
             seed(null);
         }
-        return statics.prng.random();
+        return ui32(randInt32()) * (1.0 / 4294967296.0);
     }
     counter += 1;
 
-    function randInt32(cache) {
-        if (statics.prng === null) {
+    function randInt32() {
+        if (statics.seed === null) {
             seed(null);
         }
-        return statics.prng.randInt32();
+        return mt19937.genrand_int32();
     }
     counter += 1;
 
