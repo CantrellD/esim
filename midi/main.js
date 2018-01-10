@@ -117,7 +117,7 @@ function midiInputSetup() {
         ok = true;
     }
     if (!ok) {
-        alert("MIDI input device not found.");
+        console.log("MIDI input device not found.");
     }
 }
 function onMIDIAccept(midi) {
