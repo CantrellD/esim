@@ -926,7 +926,7 @@ function main(argv) {
         }
 
         function e2etype(evt) {
-            if (ui32(evt.type & 0xF0) === 0xF0) {
+            if (utils.ui32(evt.type & 0xF0) === 0xF0) {
                 return {
                     "0x0": "???",
                     "0x1": "???",
@@ -938,12 +938,12 @@ function main(argv) {
                     "0x7": "???",
                     "0x8": "???",
                     "0x9": "???",
-                    "0xA": "???",
-                    "0xB": "???",
-                    "0xC": "???",
-                    "0xD": "???",
-                    "0xE": "???",
-                    "0xF": "Meta: " + {
+                    "0xa": "???",
+                    "0xb": "???",
+                    "0xc": "???",
+                    "0xd": "???",
+                    "0xe": "???",
+                    "0xf": "Meta: " + {
                         "0x0": "Sequence Number",
                         "0x1": "General Text",
                         "0x2": "Copyright Text",
@@ -956,25 +956,25 @@ function main(argv) {
                         "0x9": "Device Name",
                         "0x20": "Channel Prefix",
                         "0x21": "Port",
-                        "0x2F": "End of Track",
+                        "0x2f": "End of Track",
                         "0x51": "Tempo",
                         "0x54": "SMPTE Offset",
                         "0x58": "Time Signature",
                         "0x59": "Key Signature",
-                        "0x7F": "Sequencer Specific Event",
-                    }["0x" + evt.parameters[0].toString(16).toUpperCase()],
-                }["0x" + ui32(evt.type & 0x0F).toString(16).toUpperCase()];
+                        "0x7f": "Sequencer Specific Event",
+                    }["0x" + evt.parameters[0].toString(16)],
+                }["0x" + utils.ui32(evt.type & 0x0F).toString(16)];
             }
             else {
                 return {
                     "0x80": "Note Off",
                     "0x90": "Note On",
-                    "0xA0": "Polyphonic Key Pressure (Aftertouch)",
-                    "0xB0": "Control Change",
-                    "0xC0": "Program Change",
-                    "0xD0": "Channel Pressure (Aftertouch)",
-                    "0xE0": "Pitch Bend Change",
-                }["0x" + ui32(evt.type & 0xF0).toString(16).toUpperCase()];
+                    "0xa0": "Polyphonic Key Pressure (Aftertouch)",
+                    "0xb0": "Control Change",
+                    "0xc0": "Program Change",
+                    "0xd0": "Channel Pressure (Aftertouch)",
+                    "0xe0": "Pitch Bend Change",
+                }["0x" + utils.ui32(evt.type & 0xF0).toString(16)];
             }
         }
 
