@@ -375,7 +375,7 @@ function createTargets(evt, tonic, mode) {
             mval = "aeolian";
         }
         return [{
-            type: "Key Signature",
+            type: "Meta: Key Signature",
             track: evt.src_track,
             tonic: tval,
             mode: mval,
@@ -441,7 +441,7 @@ function tick() {
         if (target.x > app.hammer) {
             continue;
         }
-        if (target.type === "Key Signature") {
+        if (target.type === "Meta: Key Signature") {
             app.tonic = app.transpose ? app.tonic : target.tonic;
             app.mode = app.transpose ? app.mode : target.mode;
             app.targets.splice(i, 1);
@@ -467,7 +467,7 @@ function tick() {
             if (!utils.containsElement(app.filters, target.track)) {
                 app.targets.push(target);
                 // TODO: Should key signatures really be filtered?
-                if (target.type === "Key Signature") {
+                if (target.type === "Meta: Key Signature") {
                     app.qmeta.tonic = target.tonic;
                     app.qmeta.mode = target.mode;
                 }
@@ -581,7 +581,7 @@ function draw() {
         var mode = app.mode;
         for (var i = 0; i < app.targets.length; i++) {
             var target = app.targets[i];
-            if (target.type === "Key Signature" && !app.transpose) {
+            if (target.type === "Meta: Key Signature" && !app.transpose) {
                 tonic = target.tonic;
                 mode = target.mode;
             }
@@ -634,7 +634,7 @@ function draw() {
                 ctx.stroke();
                 ctx.closePath();
             }
-            else if (target.type === "Key Signature") {
+            else if (target.type === "Meta: Key Signature") {
                 var xyzzy = app.hammer - app.KEYSIGX;
                 drawLine(ctx, xval, 0, xval, ymax);
                 drawKeySignature(target.tonic, target.mode, target.x - xyzzy);
@@ -925,9 +925,9 @@ function main(argv) {
             tryAddNextCandidateFrom(i);
         }
 
-        function e2etype(evt) {
+        function e2einfo(evt) {
             if (utils.ui32(evt.type & 0xF0) === 0xF0) {
-                return {
+                var hint = {
                     "0x0": "???",
                     "0x1": "???",
                     "0x2": "???",
@@ -964,9 +964,11 @@ function main(argv) {
                         "0x7f": "Sequencer Specific Event",
                     }["0x" + evt.parameters[0].toString(16)],
                 }["0x" + utils.ui32(evt.type & 0x0F).toString(16)];
+                var channel = null; // TODO: Should this really be null?
+                return {hint: hint, channel: channel};
             }
             else {
-                return {
+                var hint =  {
                     "0x80": "Note Off",
                     "0x90": "Note On",
                     "0xa0": "Polyphonic Key Pressure (Aftertouch)",
@@ -975,6 +977,8 @@ function main(argv) {
                     "0xd0": "Channel Pressure (Aftertouch)",
                     "0xe0": "Pitch Bend Change",
                 }["0x" + utils.ui32(evt.type & 0xF0).toString(16)];
+                var channel = utils.ui32(type & 0x0F);
+                return {hint: hint, channel: channel};
             }
         }
 
@@ -983,10 +987,10 @@ function main(argv) {
             var evt = val.evt;
             timeline.push({
                 timestamp: val.timestamp,
-                hint: e2etype(evt),
+                hint: e2einfo(evt).hint,
                 parameters: evt.parameters,
                 src_track: val.track_idx,
-                target_channel: evt.channel,
+                target_channel: e2einfo(evt).channel,
                 type: evt.type,
             });
             if (evt.type === 0xFF && evt.parameters[0] === 0x51) {
