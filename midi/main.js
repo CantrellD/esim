@@ -170,174 +170,6 @@ function noteOff(note) {
     }
 }
 
-function midi2object(arr) {
-    var index = 0;
-    var runner = null; // Status byte. Used for Running Status.
-
-    function ui32(arg) {
-        return utils.ui32(arg);
-    }
-
-    function parseVariableLengthValue() {
-        var value = 0;
-        while (ui32(arr[index] & 0x80) > 0) {
-            value = ui32(value << 7) + ui32(arr[index++] & 0x7F);
-        }
-        value = ui32(value << 7) + ui32(arr[index++] & 0x7F);
-        utils.assert(value < ui32(0x10000000));
-        return value;
-    }
-
-    function parseFile() {
-        var header = {
-            chunk_id: "",
-            chunk_size: 0,
-            chunk_offset: null,
-            format_type: 0,
-            number_of_tracks: 0,
-            time_division: 0,
-        };
-        var tracks = [];
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        utils.assert(header.chunk_id === "MThd");
-        header.chunk_size += ui32(arr[index++] << 24);
-        header.chunk_size += ui32(arr[index++] << 16);
-        header.chunk_size += ui32(arr[index++] << 8);
-        header.chunk_size += ui32(arr[index++] << 0);
-        header.chunk_offset = index;
-        header.format_type += ui32(arr[index++] << 8);
-        header.format_type += ui32(arr[index++] << 0);
-        header.number_of_tracks += ui32(arr[index++] << 8);
-        header.number_of_tracks += ui32(arr[index++] << 0);
-        header.time_division += ui32(arr[index++] << 8);
-        header.time_division += ui32(arr[index++] << 0);
-        for (var i = 0; i < header.number_of_tracks; i++) {
-            tracks.push(parseTrack());
-            runner = null; // TODO: Verify that running status doesn't persist.
-        }
-        utils.assert(index === arr.length);
-        return {header: header, tracks: tracks};
-    }
-
-    function parseTrack() {
-        var header = {
-            chunk_id: "",
-            chunk_size: 0,
-            chunk_offset: null,
-        };
-        var events = [];
-        var buffer = null;
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_id += String.fromCharCode(arr[index++]);
-        header.chunk_size += ui32(arr[index++] << 24);
-        header.chunk_size += ui32(arr[index++] << 16);
-        header.chunk_size += ui32(arr[index++] << 8);
-        header.chunk_size += ui32(arr[index++] << 0);
-        header.chunk_offset = index;
-        if (header.chunk_id === "MTrk") {
-            while (index < header.chunk_offset + header.chunk_size) {
-                events.push(parseEvent());
-            }
-            utils.assert(index === header.chunk_offset + header.chunk_size);
-        }
-        else {
-            index = header.chunk_offset + header.chunk_size;
-        }
-        return {header: header, events: events};
-    }
-
-    function parseEvent() {
-        var delta = parseVariableLengthValue();
-        var type = null;
-        var parameters = null;
-
-        if (ui32(arr[index] & 0x80) > 0) {
-            runner = null;
-        }
-
-        if (runner === null) {
-            type = ui32(arr[index++]);
-            utils.assert(-1 < type && type < 256);
-            utils.assert(ui32(type & 0x80) > 0); // True for status bytes.
-        }
-        else {
-            type = runner;
-        }
-
-        if (ui32(type & 0xF0) === 0xF0) {
-            utils.assert(runner === null);
-            parameters = [];
-            if (type === 0xF0) {
-                while (index < arr.length && arr[index] !== 0xF7) {
-                    parameters.push(arr[index++]);
-                }
-                utils.assert(index < arr.length && arr[index] === 0xF7);
-                parameters.push(arr[index++]);
-            }
-            else if (type === 0xF1) {
-                parameters.push(arr[index++]);
-            }
-            else if (type === 0xF2) {
-                parameters.push(arr[index++]);
-                parameters.push(arr[index++]);
-            }
-            else if (type === 0xF3) {
-                parameters.push(arr[index++]);
-            }
-            else if (type === 0xFF) {
-                parameters.push(arr[index++]);
-                parameters.push(arr[index++]);
-                for (var i = 0; i < parameters[1]; i++) {
-                    parameters.push(arr[index++]);
-                }
-            }
-            return {
-                delta: delta,
-                type: type,
-                parameters: parameters,
-                hint: null,
-                channel: null,
-            };
-        }
-        else {
-            runner = type;
-            parameters = [];
-            if (ui32(type & 0xF0) === 0xC0) {
-                parameters.push(arr[index++]);
-            }
-            else if (ui32(type & 0xF0) === 0xD0) {
-                parameters.push(arr[index++]);
-            }
-            else {
-                parameters.push(arr[index++]);
-                parameters.push(arr[index++]);
-            }
-            return {
-                delta: delta,
-                type: type,
-                parameters: parameters,
-                hint: {
-                    "0x80": "Note Off",
-                    "0x90": "Note On",
-                    "0xA0": "Polyphonic Key Pressure (Aftertouch)",
-                    "0xB0": "Control Change",
-                    "0xC0": "Program Change",
-                    "0xD0": "Channel Pressure (Aftertouch)",
-                    "0xE0": "Pitch Bend Change",
-                }["0x" + ui32(type & 0xF0).toString(16).toUpperCase()],
-                channel: ui32(type & 0x0F),
-            };
-        }
-    }
-    return parseFile();
-}
-
-
 ////////////////////////////////////////////////////////////////
 // misc
 ////////////////////////////////////////////////////////////////
@@ -1016,7 +848,7 @@ function main(argv) {
         app.score = 0;
         app.combo = 0;
         wtf.sound_generator.clear();
-        app.queue = createTimeline(midi2object(src));
+        app.queue = createTimeline(alumidium.midi2object(src));
     }
 
     function createTimeline(midi) {
@@ -1092,12 +924,66 @@ function main(argv) {
         for (var i = 0; i < midi.tracks.length; i++) {
             tryAddNextCandidateFrom(i);
         }
+
+        function e2etype(evt) {
+            if (ui32(evt.type & 0xF0) === 0xF0) {
+                return {
+                    "0x0": "???",
+                    "0x1": "???",
+                    "0x2": "???",
+                    "0x3": "???",
+                    "0x4": "???",
+                    "0x5": "???",
+                    "0x6": "???",
+                    "0x7": "???",
+                    "0x8": "???",
+                    "0x9": "???",
+                    "0xA": "???",
+                    "0xB": "???",
+                    "0xC": "???",
+                    "0xD": "???",
+                    "0xE": "???",
+                    "0xF": "Meta: " + {
+                        "0x0": "Sequence Number",
+                        "0x1": "General Text",
+                        "0x2": "Copyright Text",
+                        "0x3": "Sequence Name / Track Name",
+                        "0x4": "Instrument Name",
+                        "0x5": "Lyric Text",
+                        "0x6": "Marker Text",
+                        "0x7": "Cue Point Text",
+                        "0x8": "Program Name",
+                        "0x9": "Device Name",
+                        "0x20": "Channel Prefix",
+                        "0x21": "Port",
+                        "0x2F": "End of Track",
+                        "0x51": "Tempo",
+                        "0x54": "SMPTE Offset",
+                        "0x58": "Time Signature",
+                        "0x59": "Key Signature",
+                        "0x7F": "Sequencer Specific Event",
+                    }["0x" + evt.parameters[0].toString(16).toUpperCase()],
+                }["0x" + ui32(evt.type & 0x0F).toString(16).toUpperCase()];
+            }
+            else {
+                return {
+                    "0x80": "Note Off",
+                    "0x90": "Note On",
+                    "0xA0": "Polyphonic Key Pressure (Aftertouch)",
+                    "0xB0": "Control Change",
+                    "0xC0": "Program Change",
+                    "0xD0": "Channel Pressure (Aftertouch)",
+                    "0xE0": "Pitch Bend Change",
+                }["0x" + ui32(evt.type & 0xF0).toString(16).toUpperCase()];
+            }
+        }
+
         while (candidates.length > 0) {
             var val = candidates.shift();
             var evt = val.evt;
             timeline.push({
                 timestamp: val.timestamp,
-                hint: evt.hint,
+                hint: e2etype(evt),
                 parameters: evt.parameters,
                 src_track: val.track_idx,
                 target_channel: evt.channel,
