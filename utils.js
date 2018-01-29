@@ -7,7 +7,6 @@ var utils = (function() {
     var counter = 0;
     var statics = {
         seed: null,
-        hideDeprecationMessages: false
     };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -106,18 +105,8 @@ var utils = (function() {
 ///////////////////////////////////////////////////////////////////////////////
 
     function deprecate() {
-        var src = (new Error).stack.split("\n")[4].trim();
-        if (statics.hideDeprecationMessages) {
-            return;
-        }
-        statics.hideDeprecationMessages = true;
+        var src = (new Error).stack;
         console.log("DeprecationWarning(" + src + ")");
-    }
-    counter += 1;
-
-    function $(arg) {
-        assert(arg.charAt(0) === "#");
-        return [document.getElementById(arg.slice(1))];
     }
     counter += 1;
 
@@ -155,7 +144,6 @@ var utils = (function() {
     function assert(invariant) {
         if (!invariant) {
             var src = (new Error).stack;
-            //var src = (new Error).stack.split("\n")[4].trim();
             throw "AssertionError (" + src + ")";
         }
     }
@@ -600,7 +588,6 @@ var utils = (function() {
 ///////////////////////////////////////////////////////////////////////////////
 
     var ret = {
-        $: $,
         ab2base64str: ab2base64str,
         all: all,
         any: any,

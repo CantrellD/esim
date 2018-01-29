@@ -32,14 +32,14 @@ function main(argv) {
         txt = txt.replace(/[,][\r]?[\n][\s]*[\x5d]/g, "\x5d");
         txt = txt.replace(/[,][\r]?[\n][\s]*[\x7d]/g, "\x7d");
         var obj = JSON.parse(txt);
-        save(alumidium.object2midi(obj));
+        save(alumidium.object2midi(obj, utils.assert));
     }
     document.getElementById("file_input").onchange = function(evt) {
         var reader = new FileReader();
         reader.onload = function(evt) {
             var buf = evt.target.result;
             var src = new Uint8Array(buf);
-            var txt = JSON.stringify(alumidium.midi2object(src));
+            var txt = JSON.stringify(alumidium.midi2object(src, utils.assert));
             document.getElementById("json_textarea").value = txt;
         };
         if (evt.target.files.length > 0) {

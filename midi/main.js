@@ -848,7 +848,7 @@ function main(argv) {
         app.score = 0;
         app.combo = 0;
         wtf.sound_generator.clear();
-        app.queue = createTimeline(alumidium.midi2object(src));
+        app.queue = createTimeline(alumidium.midi2object(src, utils.assert));
     }
 
     function createTimeline(midi) {
