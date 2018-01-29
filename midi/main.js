@@ -977,7 +977,7 @@ function main(argv) {
                     "0xd0": "Channel Pressure (Aftertouch)",
                     "0xe0": "Pitch Bend Change",
                 }["0x" + utils.ui32(evt.type & 0xF0).toString(16)];
-                var channel = utils.ui32(type & 0x0F);
+                var channel = utils.ui32(evt.type & 0x0F);
                 return {hint: hint, channel: channel};
             }
         }
