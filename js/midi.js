@@ -63,6 +63,7 @@ app.SHARP_CHAR = '\u266F';
 app.FLAT_CHAR = '\u266D';
 
 app.verbose = false;
+app.quiet = true;
 app.debug = false;
 app.echo = true;
 app.hack = false;
@@ -205,7 +206,7 @@ function createSoundGenerator(ctx) {
     var speakers = {};
     var rmbuffer = [];
     function produceSound(frequency, volume) {
-        var now = wtf.audio_context.currentTime; // TODO: Just use ctx.
+        var now = ctx.currentTime;
         var key = frequency.toString() + "hz";
         if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
             return;
@@ -225,7 +226,7 @@ function createSoundGenerator(ctx) {
         speakers[key].gnode.gain.setTargetAtTime(volume, now + 0.01, 0.01);
     }
     function destroySound(frequency) {
-        var now = wtf.audio_context.currentTime; // TODO: Just use ctx.
+        var now = ctx.currentTime;
         var key = frequency.toString() + "hz";
         if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
             var speaker = speakers[key];
@@ -807,7 +808,9 @@ function main(argv) {
         if (app.kmap.hasOwnProperty(keyid)) {
             var note = app.kmap[keyid];
             var frequency = note2frequency(note);
-            wtf.sound_generator.produceSound(frequency, 0.25);
+            if (!app.quiet) {
+                wtf.sound_generator.produceSound(frequency, 0.25);
+            }
             noteOn(note);
         }
     };
