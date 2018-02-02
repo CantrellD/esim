@@ -212,11 +212,11 @@ function createSoundGenerator(ctx) {
             return;
         }
         var onode = ctx.createOscillator();
-        onode.frequency.setTargetAtTime(frequency, now + 0.01, 0.01);
         onode.type = "sine";
+        onode.frequency.setValueAtTime(frequency, now);
 
         var gnode = ctx.createGain();
-        gnode.gain.setTargetAtTime(0, now + 0.01, 0.01);
+        gnode.gain.setValueAtTime(0, now);
 
         onode.connect(gnode);
         gnode.connect(ctx.destination);
