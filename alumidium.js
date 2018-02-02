@@ -16,13 +16,13 @@
 
 var alumidium = (function() {
 
+    function ui32(arg) {
+        return arg >>> 0;
+    }
+
     function midi2object(arr, assert) {
         var index = 0;
         var runner = null; // Status byte. Used for Running Status.
-
-        function ui32(arg) {
-            return arg >>> 0;
-        }
 
         function parseVariableLengthValue() {
             var value = 0;
@@ -183,10 +183,6 @@ var alumidium = (function() {
     function object2midi(obj, assert) {
         var arr = [];
         var index = 0;
-
-        function ui32(arg) {
-            return ui32(arg);
-        }
 
         function pushVariableLengthValue(value) {
             var src = ui32(value);
