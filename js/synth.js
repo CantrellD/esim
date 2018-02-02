@@ -28,7 +28,7 @@ function createToneGenerator(frequency, volume) {
 
 function main() {
     bButton = document.getElementById("bButton")[0];
-    fField = document.getElementById(("fField")[0];
+    fField = document.getElementById("fField")[0];
 
     fField.defaultValue = JSON.stringify(fmap);
 
