@@ -14,12 +14,13 @@ var fmap = {
 var generators = {};
 
 function createToneGenerator(frequency, volume) {
+    var now = ctx.currentTime;
     var gen = ctx.createOscillator();
-    gen.frequency.value = frequency;
+    gen.frequency.setTargetAtTime(frequency, now + 0.01, 0.01);
     gen.type = "sine";
 
     var gnode = ctx.createGain();
-    gnode.gain.value = volume;
+    gnode.gain.setTargetAtTime(volume, now + 0.01, 0.01);
 
     gen.connect(gnode);
     gnode.connect(ctx.destination);

@@ -187,17 +187,17 @@ function createSoundGenerator(ctx) {
     var speakers = {};
     var rmbuffer = [];
     function produceSound(frequency, volume) {
-        var now = wtf.audio_context.currentTime;
+        var now = wtf.audio_context.currentTime; // TODO: Just use ctx.
         var key = frequency.toString() + "hz";
         if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
             return;
         }
         var onode = ctx.createOscillator();
-        onode.frequency.value = frequency;
+        onode.frequency.setTargetAtTime(frequency, now + 0.01, 0.01);
         onode.type = "sine";
 
         var gnode = ctx.createGain();
-        gnode.gain.value = 0;
+        gnode.gain.setTargetAtTime(0, now + 0.01, 0.01);
 
         onode.connect(gnode);
         gnode.connect(ctx.destination);
@@ -207,7 +207,7 @@ function createSoundGenerator(ctx) {
         speakers[key].gnode.gain.setTargetAtTime(volume, now + 0.01, 0.01);
     }
     function destroySound(frequency) {
-        var now = wtf.audio_context.currentTime;
+        var now = wtf.audio_context.currentTime; // TODO: Just use ctx.
         var key = frequency.toString() + "hz";
         if (speakers.hasOwnProperty(key) && speakers[key] !== null) {
             var speaker = speakers[key];
