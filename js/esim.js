@@ -35,6 +35,7 @@ var EvtEnum = {
     CONTEXTMENU: "contextmenu"
 };
 
+var prng;
 var cvs;
 var ctx;
 var img;
@@ -153,10 +154,31 @@ function City(x, y) {
                 voters.pop();
             }
         }
+
+        function gauss(mu, sigma, cache) {
+            var u1;
+            var u2;
+            var tmp;
+            if ("value" in cache && cache.value !== null) {
+                tmp = cache.value;
+                cache.value = null;
+                return tmp * sigma + mu;
+            }
+            do {
+                u1 = 2.0 * prng.random() - 1.0;
+                u2 = 2.0 * prng.random() - 1.0;
+                tmp = u1 * u1 + u2 * u2;
+            } while (tmp === 0 || tmp > 1.0);
+
+            tmp = Math.sqrt((-2.0 * Math.log(tmp)) / tmp);
+            cache.value = u2 * tmp;
+            return u1 * tmp * sigma + mu;
+        }
         var gaussCache = {};
+
         while (history.length < arg) {
-            var xval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
-            var yval = utils.i32(utils.gauss(0, this.getSigma(), gaussCache));
+            var xval = utils.i32(gauss(0, this.getSigma(), gaussCache));
+            var yval = utils.i32(gauss(0, this.getSigma(), gaussCache));
             var xy = args2xy(xval, yval);
             if (xy in xy2index) {
                 voters[xy2index[xy]].weight += 1;
@@ -455,6 +477,8 @@ function main() {
     var raw_uri_data = utils.uri2data(window.location.href, URI_SUBS);
     var uri_data = utils.uri2data(window.location.href, URI_SUBS);
 
+    prng = new MersenneTwister(utils.ui32(Math.random() * 4294967296));
+
     if ("download" in raw_uri_data) {
         uri_data.download = utils.forceBool(raw_uri_data.download);
         download_flag = uri_data.download;
@@ -465,7 +489,7 @@ function main() {
     }
     if ("seed" in raw_uri_data) {
         uri_data.seed = utils.forceInt(raw_uri_data.seed);
-        utils.seed(uri_data.seed);
+        prng.seed(uri_data.seed);
     }
     if ("flags" in raw_uri_data) {
         uri_data.flags = utils.forceInt(raw_uri_data.flags);

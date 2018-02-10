@@ -5,9 +5,6 @@ var utils = (function() {
     var helpers = {};
     var helperc = 0;
     var counter = 0;
-    var statics = {
-        seed: null,
-    };
 
 ///////////////////////////////////////////////////////////////////////////////
 // cantrips
@@ -262,64 +259,6 @@ var utils = (function() {
     counter += 1;
 
 ///////////////////////////////////////////////////////////////////////////////
-// prng
-///////////////////////////////////////////////////////////////////////////////
-
-    function seed(arg) {
-        statics.seed = orElse(arg, ui32(Math.random() * 4294967296));
-        mt19937.init_genrand(statics.seed);
-    }
-    counter += 1;
-
-    function random() {
-        if (statics.seed === null) {
-            seed(null);
-        }
-        return ui32(randInt32()) * (1.0 / 4294967296.0);
-    }
-    counter += 1;
-
-    function randInt32() {
-        if (statics.seed === null) {
-            seed(null);
-        }
-        return mt19937.genrand_int32();
-    }
-    counter += 1;
-
-    function gauss(mu, sigma, cache) {
-        var u1;
-        var u2;
-        var tmp;
-        if ("value" in cache && cache.value !== null) {
-            tmp = cache.value;
-            cache.value = null;
-            return tmp * sigma + mu;
-        }
-        do {
-            u1 = 2.0 * random() - 1.0;
-            u2 = 2.0 * random() - 1.0;
-            tmp = u1 * u1 + u2 * u2;
-        } while (tmp === 0 || tmp > 1.0);
-
-        tmp = Math.sqrt((-2.0 * Math.log(tmp)) / tmp);
-        cache.value = u2 * tmp;
-        return u1 * tmp * sigma + mu;
-    }
-    counter += 1;
-
-    function shuffle(arr) {
-        var n, tmp;
-        for (var i = arr.length - 1; i > 0; i--) {
-            n = Math.floor(random() * (i + 1));
-            tmp = arr[i];
-            arr[i] = arr[n];
-            arr[n] = tmp;
-        }
-    }
-    counter += 1;
-
-///////////////////////////////////////////////////////////////////////////////
 // sorting
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -511,7 +450,6 @@ var utils = (function() {
         forceBool: forceBool,
         forceFloat: forceFloat,
         forceInt: forceInt,
-        gauss: gauss,
         keys: keys,
         hsl2rgb: hsl2rgb,
         i32: i32,
@@ -524,13 +462,9 @@ var utils = (function() {
         mod: mod,
         orElse: orElse,
         permutations: permutations,
-        randInt32: randInt32,
-        random: random,
         reEscape: reEscape,
         rgb2str: rgb2str,
-        seed: seed,
         setDefault: setDefault,
-        shuffle: shuffle,
         strSwap: strSwap,
         sum: sum,
         ui32: ui32,
