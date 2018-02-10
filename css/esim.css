@@ -55,3 +55,6 @@ button {
 progress {
     width: 99%;
 }
+.wait * {
+    cursor: wait !important;
+}

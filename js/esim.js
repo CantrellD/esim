@@ -349,7 +349,6 @@ function requestGraph(callback) {
     if (cities.filter(function(x) {return x.nominated;}).length < 1) {
         return;
     }
-    var ss = document.styleSheets[0];
     var rField = document.getElementById("rField");
     var mField = document.getElementById("mField");
     var step = utils.i32(rField.value);
@@ -366,7 +365,8 @@ function requestGraph(callback) {
     var x = 0;
     var y = 0;
     fn.busy = true;
-    ss.insertRule("* {cursor: wait !important}", 0);
+    document.documentElement.classList.add("wait");
+
     setTimeout(process, 0);
     function process() {
         var t0 = Date.now();
@@ -393,7 +393,7 @@ function requestGraph(callback) {
         }
         fn.outctx.drawImage(fn.cvs, 0, 0, fn.cvs.width, fn.cvs.height);
         callback(fn.outcvs);
-        ss.deleteRule(0);
+        document.documentElement.classList.remove("wait");
         fn.busy = false;
         if (fn.deferred !== null) {
             requestGraph(fn.deferred);
