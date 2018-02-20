@@ -97,13 +97,13 @@ app.combo = 0;
 app.active_notes = [];
 app.tick_counter = 0;
 
-var wtf = {};
-wtf.midi_access = null;
-wtf.canvas = null;
-wtf.context = null;
-wtf.audio = null;
-wtf.sound_generator = null;
-wtf.patch = function(dt) {
+var evil = {};
+evil.midi_access = null;
+evil.canvas = null;
+evil.context = null;
+evil.audio = null;
+evil.sound_generator = null;
+evil.patch = function(dt) {
     if (!app.hack) {
         return;
     }
@@ -129,7 +129,7 @@ function note2frequency(note) {
 
 function midiInputSetup() {
     var ok = false;
-    var input = wtf.midi_access.inputs.values().next();
+    var input = evil.midi_access.inputs.values().next();
     while (input && !(input.done)) {
         input.value.onmidimessage = onMIDIMessage;
         input = input.next;
@@ -140,8 +140,8 @@ function midiInputSetup() {
     }
 }
 function onMIDIAccept(midi) {
-    wtf.midi_access = midi;
-    wtf.midi_access.onstatechange = midiInputSetup;
+    evil.midi_access = midi;
+    evil.midi_access.onstatechange = midiInputSetup;
     midiInputSetup();
     tick.cache = {};
     tick(tick.cache);
@@ -464,7 +464,7 @@ function tick() {
             app.tonic = app.transpose ? app.tonic : target.tonic;
             app.mode = app.transpose ? app.mode : target.mode;
             app.targets.splice(i, 1);
-            wtf.sound_generator.clear();
+            evil.sound_generator.clear();
         }
     }
 
@@ -502,10 +502,10 @@ function tick() {
             var note = degree2note(scale, app.octave, target.degree);
             var frequency = note2frequency(note);
             if (target.type === "Note On") {
-                wtf.sound_generator.produceSound(frequency, 0.25);
+                evil.sound_generator.produceSound(frequency, 0.25);
             }
             else if (target.type === "Note Off") {
-                wtf.sound_generator.destroySound(frequency);
+                evil.sound_generator.destroySound(frequency);
             }
         }
     }
@@ -517,8 +517,8 @@ function tick() {
     }
 
     // Callback.
-    if (wtf.patch !== null) {
-        wtf.patch(dt);
+    if (evil.patch !== null) {
+        evil.patch(dt);
     }
 
     // Update canvas.
@@ -536,7 +536,7 @@ function tick() {
 }
 
 function draw() {
-    var cvs = wtf.canvas;
+    var cvs = evil.canvas;
     var ctx = cvs.getContext("2d");
     var xmin = 0;
     var ymin = 0;
@@ -788,13 +788,13 @@ function draw() {
 
 function main(argv) {
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    wtf.canvas = document.getElementById("canvas");
-    wtf.audio_context = new AudioContext();
-    wtf.sound_generator = createSoundGenerator(wtf.audio_context);
+    evil.canvas = document.getElementById("canvas");
+    evil.audio_context = new AudioContext();
+    evil.sound_generator = createSoundGenerator(evil.audio_context);
     utils.update(app, utils.uri2data(window.location.href, []));
     window.addEventListener('load', function() {
-        if (wtf.context === null) {
-            wtf.context = new AudioContext();
+        if (evil.context === null) {
+            evil.context = new AudioContext();
             if (navigator.requestMIDIAccess) {
                 navigator.requestMIDIAccess().then(onMIDIAccept, onMIDIReject);
             }
@@ -809,7 +809,7 @@ function main(argv) {
             var note = app.kmap[keyid];
             var frequency = note2frequency(note);
             if (!app.quiet) {
-                wtf.sound_generator.produceSound(frequency, 0.25);
+                evil.sound_generator.produceSound(frequency, 0.25);
             }
             noteOn(note);
         }
@@ -819,7 +819,7 @@ function main(argv) {
         if (app.kmap.hasOwnProperty(keyid)) {
             var note = app.kmap[keyid];
             var frequency = note2frequency(note);
-            wtf.sound_generator.destroySound(frequency);
+            evil.sound_generator.destroySound(frequency);
             noteOff(note);
         }
     };
@@ -868,7 +868,7 @@ function main(argv) {
         app.qtime = 0.0;
         app.score = 0;
         app.combo = 0;
-        wtf.sound_generator.clear();
+        evil.sound_generator.clear();
         app.queue = createTimeline(alumidium.midi2object(src, utils.assert));
     }
 
