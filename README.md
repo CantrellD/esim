@@ -87,6 +87,20 @@ function demo(candidates, ballots, cache) {
 methods.push({name: "Magic Worst", fn: demo});
 onUpdate();
 ```
+# SYNTH
+
+## Context
+
+This is a simple tool for generating tones at specific frequencies.
+The text field can be used to change the mapping from computer keyboard keys to tone frequencies.
+
+# MIDIER
+
+## Context
+
+This is a simple tool for manipulating MIDI files.
+When a MIDI file is loaded, the binary MIDI representation is translated into a plaintext JSON representation, which fills the text field.
+When a MIDI file is saved, the plaintext JSON representation is translated back into the binary MIDI representation, which is saved to disk.
 
 # MIDI
 
