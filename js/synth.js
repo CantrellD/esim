@@ -48,25 +48,25 @@ function createToneGenerator(frequency, volume) {
 }
 
 function main() {
-    bButton = document.getElementById("bButton");
-    fField = document.getElementById("fField");
+    var bButton = document.getElementById("bButton");
+    var fField = document.getElementById("fField");
 
     fField.defaultValue = JSON.stringify(fmap);
 
     document.onkeydown = function(evt) {
-        keyid = utils.keyEventSourceId(evt);
-        if (keyid in generators && generators[keyid] !== null) {
+        var keyid = utils.keyEventSourceId(evt);
+        if (generators.hasOwnProperty(keyid) && generators[keyid] !== null) {
             return;
         }
-        if (keyid in fmap) {
-            frequency = fmap[keyid];
+        if (fmap.hasOwnProperty(keyid)) {
+            var frequency = fmap[keyid];
             generators[keyid] = createToneGenerator(frequency, 0.25);
             generators[keyid].start();
         }
     };
     document.onkeyup = function(evt) {
-        keyid = utils.keyEventSourceId(evt);
-        if (keyid in generators && generators[keyid] !== null) {
+        var keyid = utils.keyEventSourceId(evt);
+        if (generators.hasOwnProperty(keyid) && generators[keyid] !== null) {
             generators[keyid].stop();
             generators[keyid] = null;
         }
