@@ -35,6 +35,10 @@ var EvtEnum = {
     CONTEXTMENU: "contextmenu"
 };
 
+// TODO: Use one global object for all of these variables!
+// That would at least make it obvious that they don't have local scope.
+// Not abusing global scope at all would be better, but... Old code is old.
+
 var prng;
 var cvs;
 var ctx;
