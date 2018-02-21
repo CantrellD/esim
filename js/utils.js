@@ -134,26 +134,9 @@ var utils = (function() {
     counter += 1;
 
     function factorial(arg) {
-        var counter = null;
-        var ret = null;
-        var copy = arg;
-        var index = 0;
-        if (!factorial.hasOwnProperty("memo")) {
-            factorial.memo = [1];
-        }
-        while (copy > 1 && index < factorial.memo.length - 1) {
-            index += 1;
-            copy = copy >>> 1;
-        }
-        counter = Math.pow(2, index);
-        ret = factorial.memo[index];
-
-        while (counter < arg) {
-            counter += 1;
-            ret = ret * counter;
-            if (counter === Math.pow(2, factorial.memo.length)) {
-                factorial.memo.push(ret);
-            }
+        var ret = 1;
+        for (var i = 1; i < arg + 1; i++) {
+            ret *= i;
         }
         return ret;
     }
