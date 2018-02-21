@@ -164,7 +164,11 @@ Developer: Douglas Cantrell (cantrell.douglas@gmail.com)
 
 ### Begin Comments
 
-Attribution isn't actually necessary for this file, but it doesn't hurt.
+The original Alumidium implementation can be attributed to Douglas Cantrell.
+The revision that was merged into this project as a subtree can be attributed to Douglas Cantrell.
+
+Link to the github repository where this code is maintained:
+https://github.com/CantrellD/alumidium
 
 ### Begin License Info
 
@@ -191,6 +195,9 @@ If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 The original Mersenne Twister implementation can be attributed to Makoto Matsumoto and Takuji Nishimura.
 The original translation from C to JavaScript can be attributed to Sean McCullough.
 The revision that was merged into this project as a subtree can be attributed to Raphael Pigulla.
+
+Link to the github repository where this code is maintained:
+https://github.com/pigulla/mersennetwister
 
 ### Begin License Info
 
