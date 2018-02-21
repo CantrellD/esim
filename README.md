@@ -40,9 +40,10 @@ Each voter ranks the candidates in order of preference.
 Candidates are eliminated until only one candidate remains.
 The candidate ranked higher than any remaining alternative by the fewest voters is eliminated, as needed.
 
-### Condorcet (e.g. Schulze)
+### Condorcet
 
 If there exists a candidate with majority support in every possible pairwise contest, that candidate is elected.
+Note that in this simulation, any failure to find such a candidate will be handled in the same way as a tie.
 
 ### Magic Best
 
