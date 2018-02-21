@@ -160,13 +160,6 @@ Developer: Douglas Cantrell (cantrell.douglas@gmail.com)
 
 # ATTRIBUTION
 
-## Begin Preamble
-
-It's not entirely clear to me what the best practices are for complying with attribution requirements in open source software licenses.
-I suspect that this section isn't necessary, since I would probably be compliant without it, but I'm going to err on the side of caution.
-To that end, the attribution details (and certain other information) for external files that I use will be listed below.
-
-
 ## Begin "alumidium/alumidium.js" Block
 
 ### Begin Comments
