@@ -1,4 +1,10 @@
-# ESIM
+# PREAMBLE
+
+This is the (pretty bad) source code for autological.net, where I post random personal projects.
+If you have comments or questions, please send them to cantrell.douglas@gmail.com.
+
+
+# ESIM (ELECTION SIMULATOR)
 
 ## Context
 
@@ -88,14 +94,14 @@ function demo(candidates, ballots, cache) {
 methods.push({name: "Magic Worst", fn: demo});
 onUpdate();
 ```
-# SYNTH
+# SYNTH (TONE GENERATOR)
 
 ## Context
 
 This is a simple tool for generating tones at specific frequencies.
 The text field can be used to change the mapping from computer keyboard keys to tone frequencies.
 
-# MIDIER
+# MIDIER (MIDI EDITOR)
 
 ## Context
 
@@ -103,7 +109,7 @@ This is a simple tool for manipulating MIDI files.
 When a MIDI file is loaded, the binary MIDI representation is translated into a plaintext JSON representation, which fills the text field.
 When a MIDI file is saved, the plaintext JSON representation is translated back into the binary MIDI representation, which is saved to disk.
 
-# MIDI
+# MIDI (MIDI GAME)
 
 ## Context
 
@@ -154,10 +160,6 @@ The nature of these parameters is often esoteric, but many of them will be descr
 * treble: If true, draw lines for the bass staff.
 * verbose: If true, log additional information to the JavaScript console.
 * x\_velocity: The rate at which targets move, in percent-of-screen per second.
-
-# CONTACT
-
-Developer: Douglas Cantrell (cantrell.douglas@gmail.com)
 
 # ATTRIBUTION
 
